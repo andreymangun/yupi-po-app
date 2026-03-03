@@ -165,7 +165,7 @@ def generate_po_pdf(po_data, po_number):
 # 3. INTERFACE
 # ==========================================
 st.set_page_config(page_title="Serveone System", layout="wide")
-st.title("📑 Serveone PO Generator for Yupi Project")
+st.title("📑PO Generator for Yupi Project")
 
 link = st.sidebar.text_input("Enter your Google Sheets CSV link here")
 
