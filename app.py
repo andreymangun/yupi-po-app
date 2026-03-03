@@ -8,6 +8,7 @@ import zipfile
 from io import StringIO
 import os
 from datetime import date
+import re
 
 # ==========================================
 # 1. KONFIGURASI HALAMAN (ERP UI)
@@ -16,19 +17,12 @@ st.set_page_config(page_title="ServeOne ERP System", page_icon="🌐", layout="w
 
 st.markdown("""
     <style>
-    /* Futuristic ERP UI */
     .block-container { padding-top: 2rem; padding-bottom: 2rem; }
     h1 { color: #0ea5e9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-weight: 800; text-align: center; margin-bottom: 5px;}
     .subtitle { text-align: center; color: #64748b; margin-bottom: 30px; font-size: 1.1rem; }
-    
-    /* Metrics Styling */
     div[data-testid="stMetricValue"] { font-size: 1.8rem; color: #0ea5e9; font-weight: 700; }
-    
-    /* Center the Text Input */
     .stTextInput>div { width: 70%; margin: 0 auto; }
     .stTextInput label { display: flex; justify-content: center; font-size: 1rem; font-weight: 600; color: #334155;}
-    
-    /* Custom Buttons */
     .stButton>button { 
         background: linear-gradient(90deg, #0284c7 0%, #0369a1 100%); 
         color: white; border: none; border-radius: 6px; width: 100%; 
@@ -42,7 +36,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. PDF ENGINE (BUILT-IN AGAR AMAN)
+# 2. PDF ENGINE
 # ==========================================
 class ServeonePO(FPDF):
     def header(self):
@@ -153,7 +147,7 @@ def generate_po_pdf(po_data, po_number):
         rem = clean_val(row.get('REMARK YUPI'))
         if rem: remark_list.append(rem)
 
-        lines = pdf.multi_cell(50, 4, name_spec, split_only=True)
+        lines = pdf.multi_cell(50, 4, name_spec, dry_run=True, output="LINES")
         row_h = max(10, len(lines) * 4 + 2)
 
         if pdf.get_y() + row_h > 240: pdf.add_page()
@@ -181,7 +175,6 @@ def generate_po_pdf(po_data, po_number):
         pdf.cell(25, 5, label, border=1, align='R')
         pdf.cell(25, 5, f"{val:,.0f}", border=1, align='R', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    # REMARKS
     pdf.ln(5)
     pdf.set_font('Helvetica', 'B', 9)
     pdf.cell(0, 6, "REMARKS:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -196,7 +189,6 @@ def generate_po_pdf(po_data, po_number):
 st.markdown("<h1>SERVEONE PO ENGINE</h1>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Automated Document Processing System</div>", unsafe_allow_html=True)
 
-# Input Link Center
 link = st.text_input("Link CSV Google Sheets", placeholder="Masukkan link CSV di sini lalu tekan Enter...")
 st.divider()
 
@@ -206,102 +198,127 @@ if link:
             res = requests.get(link)
             df_raw = pd.read_csv(StringIO(res.text), low_memory=False)
             
-            # --- LOGIKA HEADER DINAMIS ---
             mask = df_raw.apply(lambda row: row.astype(str).str.contains('PO YUPI').any(), axis=1)
             idx = df_raw[mask].index[0]
             df = df_raw.iloc[idx+1:].copy()
             df.columns = [str(c).strip() for c in df_raw.iloc[idx]]
             df = df.dropna(subset=['PO YUPI'])
             
-            # Memperbaiki kolom numerik untuk perhitungan Amount Metrik
+            # Memperbaiki kolom numerik dan membersihkan nama Vendor
+            df['Vendor Name'] = df.get('Vendor Name', pd.Series(['Unknown']*len(df))).fillna('Unknown').astype(str).str.strip()
+            
             for col in ['PURCHASE PRICE', "Ord. Q'ty", 'AMOUNT', 'PURCHASE AMOUNT']:
                 if col in df.columns:
                     df[col] = df[col].apply(safe_float)
 
             # --- PANEL FILTER ---
             st.markdown("### 🎛️ Control Panel")
-            col_filter1, col_filter2 = st.columns([1, 2])
+            st.info("💡 **Smart Split & Filter:** Sistem otomatis memecah PO jika terdapat >1 Vendor, dan bisa mengabaikan item yang belum memiliki harga atau belum ditentukan vendornya.")
             
-            # 1. Filter PO Date (By Email)
+            col_filter1, col_filter2, col_filter3 = st.columns([1, 1.5, 1])
+            
+            # 1. Filter PO Date
             with col_filter1:
                 date_cols = [c for c in df.columns if 'PO DATE' in c.upper()]
                 date_col_name = date_cols[0] if date_cols else None
-                
                 if date_col_name:
                     available_dates = sorted(df[date_col_name].dropna().astype(str).unique())
                     selected_date = st.selectbox("📅 Filter by PO Date:", ["Semua Tanggal"] + available_dates)
                     if selected_date != "Semua Tanggal":
                         df = df[df[date_col_name] == selected_date]
-                else:
-                    st.info("Kolom 'PO Date' tidak terdeteksi.")
 
-            # 2. Multi-Select PO (Bisa Delete & Select All)
+            # 2. Smart Filter (Menjawab kendala Anda)
+            with col_filter3:
+                st.markdown("<br>", unsafe_allow_html=True)
+                exclude_unready = st.checkbox("🚫 Sembunyikan Item Belum Siap (Vendor 'Serveone' / Harga 0)", value=True)
+                
+                if exclude_unready:
+                    # Buang baris yang nama vendornya mengandung kata SERVEONE (case-insensitive)
+                    df = df[~df['Vendor Name'].str.contains('SERVEONE|SERVE ONE', case=False, na=False)]
+                    # Buang baris yang harganya masih 0
+                    if 'PURCHASE PRICE' in df.columns:
+                        df = df[df['PURCHASE PRICE'] > 0]
+
+            # 3. Multi-Select PO
             with col_filter2:
                 all_pos = sorted(df['PO YUPI'].unique().tolist())
-                selected_pos = st.multiselect("🎯 Pilih Nomor PO untuk diproses:", all_pos, default=all_pos)
+                selected_pos = st.multiselect("🎯 Pilih Nomor PO:", all_pos, default=all_pos)
 
             if not selected_pos:
-                st.warning("Silakan pilih minimal satu PO pada kotak di atas.")
+                st.warning("Data kosong. Mungkin karena terfilter oleh 'Sembunyikan Item Belum Siap' atau tidak ada PO terpilih.")
                 st.stop()
 
-            # Filter data akhir berdasarkan PO yang tersisa di Multi-Select
             final_data = df[df['PO YUPI'].isin(selected_pos)]
 
-            # --- PANEL METRIK (ERP STYLE) ---
+            # --- PANEL METRIK ---
             col_met1, col_met2, col_met3 = st.columns(3)
-            col_met1.metric("Total PO Terpilih", len(selected_pos))
-            col_met2.metric("Total Item Rows", len(final_data))
+            # Hitung unik dokumen yang akan ter-generate (Group by PO dan Vendor)
+            total_documents = len(final_data.groupby(['PO YUPI', 'Vendor Name']))
             
-            # Perbaikan: Sum langsung dari kolom PURCHASE AMOUNT
+            col_met1.metric("Dokumen PO Dicetak", total_documents, help="Jumlah PDF yang akan dihasilkan (sudah dipecah per Vendor)")
+            col_met2.metric("Total Item Baris", len(final_data))
+            
             if 'PURCHASE AMOUNT' in final_data.columns:
                 estimasi_amount = final_data['PURCHASE AMOUNT'].sum()
             elif 'AMOUNT' in final_data.columns:
-                estimasi_amount = final_data['AMOUNT'].sum() # Sebagai cadangan
+                estimasi_amount = final_data['AMOUNT'].sum()
             else:
                 estimasi_amount = sum((final_data["Ord. Q'ty"] * final_data['PURCHASE PRICE']).fillna(0))
                 
             col_met3.metric("Estimasi Total Nilai (DPP)", f"IDR {estimasi_amount:,.0f}")
 
-            # --- PREVIEW DATA ---
-            st.markdown("### 📊 Preview Data")
-            # Menggunakan width="stretch" untuk menghilangkan error use_container_width
+            st.markdown("### 📊 Preview Data Tersortir")
             st.dataframe(final_data, width="stretch", height=250)
-            
             st.divider()
 
-            # --- EKSEKUSI GENERATE ---
+            # --- EKSEKUSI GENERATE (DENGAN LOGIKA SPLIT VENDOR) ---
             st.markdown("### ⚙️ Eksekusi Dokumen")
             col_gen1, col_gen2 = st.columns(2)
             
             with col_gen1:
-                st.info("Fitur Single Generate berguna jika Anda hanya memilih **1 PO** di atas.")
+                st.info("Single Generate (Berdasarkan 1 PO)")
                 if len(selected_pos) == 1:
                     po_num = selected_pos[0]
-                    if st.button(f"📄 Generate PDF [{po_num}]"):
-                        with st.spinner("Memproses dokumen..."):
-                            po_data_single = final_data[final_data['PO YUPI'] == po_num]
-                            po_bytes, site, vendor = generate_po_pdf(po_data_single, po_num)
-                            file_name = f"[{site}] PO SERVEONE - {po_num} - {vendor}.pdf"
-                            
-                            st.download_button("📥 Unduh PDF", data=po_bytes, file_name=file_name, mime="application/pdf")
+                    po_data_single_po = final_data[final_data['PO YUPI'] == po_num]
+                    unique_vendors = po_data_single_po['Vendor Name'].unique()
+                    
+                    if len(unique_vendors) > 1:
+                        st.warning(f"PO {po_num} ini memiliki **{len(unique_vendors)} Vendor berbeda**. Silakan unduh satu per satu:")
+                    
+                    for v_name in unique_vendors:
+                        # Membersihkan nama vendor untuk nama file agar tidak error
+                        safe_vname = re.sub(r'[^a-zA-Z0-9 \.\-]', '', v_name).strip()
+                        po_data_vendor = po_data_single_po[po_data_single_po['Vendor Name'] == v_name]
+                        
+                        if st.button(f"📄 Generate PDF [{po_num}] - {safe_vname}", key=f"btn_{safe_vname}"):
+                            po_bytes, site, vendor = generate_po_pdf(po_data_vendor, po_num)
+                            st.download_button(
+                                label=f"📥 Unduh {safe_vname}", 
+                                data=po_bytes, 
+                                file_name=f"[{site}] PO SERVEONE - {po_num} - {safe_vname}.pdf", 
+                                mime="application/pdf",
+                                key=f"dl_{safe_vname}"
+                            )
                 else:
                     st.button("📄 Generate Single PDF", disabled=True, help="Hanya aktif jika 1 PO dipilih")
 
             with col_gen2:
-                st.info(f"Fitur Bulk Generate akan menggabungkan **{len(selected_pos)} PO** ke dalam satu file ZIP.")
-                if st.button("📦 Generate Semua ke ZIP"):
+                st.info(f"Bulk Generate akan merangkum **{total_documents} Dokumen PDF** ke dalam satu file ZIP.")
+                if st.button("📦 Generate Semua ke ZIP (Auto-Split)"):
                     zip_buffer = io.BytesIO()
                     progress_bar = st.progress(0)
                     
-                    with st.spinner("Memproses semua PO ke ZIP..."):
+                    with st.spinner("Memproses dokumen per PO dan per Vendor..."):
                         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                            for idx, po_num in enumerate(selected_pos):
-                                po_data_single = final_data[final_data['PO YUPI'] == po_num]
-                                po_bytes, site, vendor = generate_po_pdf(po_data_single, po_num)
-                                zip_file.writestr(f"[{site}] PO SERVEONE - {po_num} - {vendor}.pdf", po_bytes)
+                            # Mengelompokkan berdasarkan PO dan VENDOR
+                            grouped_data = final_data.groupby(['PO YUPI', 'Vendor Name'])
+                            
+                            for idx, ((po_num, v_name), po_data_vendor) in enumerate(grouped_data):
+                                po_bytes, site, vendor = generate_po_pdf(po_data_vendor, po_num)
+                                safe_vname = re.sub(r'[^a-zA-Z0-9 \.\-]', '', vendor).strip()
                                 
-                                # Update loading bar
-                                progress_bar.progress((idx + 1) / len(selected_pos))
+                                zip_file.writestr(f"[{site}] PO SERVEONE - {po_num} - {safe_vname}.pdf", po_bytes)
+                                progress_bar.progress((idx + 1) / total_documents)
                         
                         st.success("Berhasil! File ZIP siap diunduh.")
                         st.download_button(
