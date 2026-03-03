@@ -165,9 +165,9 @@ def generate_po_pdf(po_data, po_number):
 # 3. INTERFACE
 # ==========================================
 st.set_page_config(page_title="Serveone System", layout="wide")
-st.title("📑 PO Generator with Auto-Rename")
+st.title("📑 Serveone PO Generator for Yupi Project")
 
-link = st.sidebar.text_input("Link CSV Google Sheets")
+link = st.sidebar.text_input("Enter your Google Sheets CSV link here")
 
 if link:
     try:
@@ -199,4 +199,4 @@ if link:
     except Exception as e:
         st.error(f"Error: {e}")
 else:
-    st.info("Masukkan link CSV untuk memulai.")
+    st.info("Please enter the CSV link in the upper-left section before starting.")
