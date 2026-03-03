@@ -238,7 +238,6 @@ if link:
             # 2. Multi-Select PO (Bisa Delete & Select All)
             with col_filter2:
                 all_pos = sorted(df['PO YUPI'].unique().tolist())
-                # Defaultnya akan mengisi semua PO. User bisa klik 'x' pada box untuk menghapus PO yang tidak ingin diproses.
                 selected_pos = st.multiselect("🎯 Pilih Nomor PO untuk diproses:", all_pos, default=all_pos)
 
             if not selected_pos:
