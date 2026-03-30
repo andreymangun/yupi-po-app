@@ -14,88 +14,91 @@ def inject_css():
     bg_base64 = get_base64_image("background_login_form.png")
     is_logged_in = st.session_state.get("logged_in", False)
     
-    # CSS GLOBAL: Sembunyikan elemen bawaan Streamlit
-    global_css = """
-    [data-testid="stHeader"] { visibility: hidden !important; height: 0px !important; margin: 0 !important; padding: 0 !important; }
-    .stDeployButton { display: none !important; }
-    #MainMenu { visibility: hidden !important; }
-    [data-testid="stSidebarNav"] { display: none !important; }
+    # CSS DASAR UNTUK SEMUA HALAMAN
+    base_css = """
+    <style>
+    /* 1. Sembunyikan Header Streamlit */
+    [data-testid="stHeader"] { visibility: hidden; height: 0px; }
+    .stDeployButton { display: none; }
+    
+    /* 2. RESPONSIVE ROOT: Mengatur ukuran dasar teks agar tidak terlalu besar */
+    html { font-size: 14px; } /* Standar pengecilan dari 16px default */
+    
+    @media (max-width: 1400px) { html { font-size: 13px; } }
+    @media (max-width: 1024px) { html { font-size: 12px; } }
+    
+    /* 3. Pengaturan Kontainer Utama */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 95% !important; /* Agar tidak terlalu mepet ke pinggir tapi tetap luas */
+    }
+
+    /* 4. Login Logo Typography */
+    .login-logo-text { 
+        color: white; 
+        font-size: 4.5rem; 
+        font-weight: 900; 
+        text-align: center; 
+        text-shadow: 0px 8px 20px rgba(0,0,0,0.5); 
+        margin-bottom: 0px;
+    }
+    
+    /* 5. Responsive Form Login */
+    div[data-testid="stForm"] {
+        background: rgba(255,255,255,0.1) !important;
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 2.5rem !important;
+        width: 100% !important;
+        max-width: 400px !important; /* Maksimal lebar form agar tidak melar */
+        margin: 0 auto;
+    }
+    </style>
     """
 
     if not is_logged_in:
         bg_style = f"""
-        @keyframes panBackground {{ 0% {{background-position: 0% 50%;}} 50% {{background-position: 100% 50%;}} 100% {{background-position: 0% 50%;}} }}
-        .stApp {{ background-image: url("data:image/png;base64,{bg_base64}"); background-size: 150% 150%; background-position: center; background-attachment: fixed; animation: panBackground 40s linear infinite; }}
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{bg_base64}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        </style>
         """ if bg_base64 else ""
-
-        st.markdown(f"""
-            <style>
-            {global_css} {bg_style}
-            div[data-testid="stForm"] {{ background: rgba(255,255,255,0.1) !important; backdrop-filter: blur(25px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); padding: 40px !important; width: 420px; margin: 0 auto; box-shadow: 0 15px 35px rgba(0,0,0,0.3); }}
-            
-            div[data-testid="stTextInput"] label {{ color: white !important; font-weight: bold !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }}
-            
-            div[data-testid="stTextInput"] input {{ 
-                color: #0F172A !important; 
-                -webkit-text-fill-color: #0F172A !important; 
-                background-color: rgba(255,255,255,0.9) !important; 
-                border: 1px solid rgba(255,255,255,0.4) !important; 
-            }}
-            .login-logo-text {{ color: white; font-size: 4rem; font-weight: 900; text-align: center; text-shadow: 0px 8px 20px rgba(0,0,0,0.5); margin-bottom: -10px; }}
-            </style>
-        """, unsafe_allow_html=True)
+        st.markdown(base_css + bg_style, unsafe_allow_html=True)
     else:
-        st.markdown(f"""
+        # Tampilan setelah Login (Dashboard & Operation)
+        st.markdown(base_css + """
             <style>
-            {global_css}
-            .stApp {{ background-color: #F8FAFC !important; }}
+            .stApp { background-color: #F8FAFC !important; }
             
-            /* --- PERBAIKAN SPASI KOSONG --- */
-            /* Mengurangi padding default Streamlit pada block container utama */
-            .block-container {{
-                padding-top: 2rem !important; /* Kurangi dari default yang biasanya besar */
-                padding-bottom: 2rem !important;
-            }}
-
-            /* Menyesuaikan kotak kaca agar isinya lebih padat di atas */
-            .main-glass-frame, div[data-testid="stForm"], div[data-testid="stExpander"], .stDataFrame, .stTabs [data-baseweb="tab-panel"] {{
-                background-color: white !important; 
-                border-radius: 12px !important; 
-                /* Padding lebih kecil di bagian atas (10px) dibanding sisi lain (20px) */
-                padding: 10px 20px 20px 20px !important; 
-                border: 1px solid #E2E8F0 !important; 
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05) !important;
-                margin-top: 0 !important; /* Pastikan tidak ada margin luar yang mendorong ke bawah */
-            }}
+            /* Typography Seimbang */
+            h1 { font-size: 2.2rem !important; font-weight: 800 !important; color: #1E293B !important; }
+            h2 { font-size: 1.8rem !important; font-weight: 700 !important; color: #1E293B !important; }
+            h3 { font-size: 1.4rem !important; font-weight: 600 !important; color: #1E293B !important; }
             
-            /* Menghilangkan margin bawaan Streamlit pada elemen Markdown pertama di dalam frame */
-            .main-glass-frame > div:first-child > div > div > div > h2,
-            .main-glass-frame > div:first-child > div > div > div > h3,
-            .main-glass-frame h2:first-of-type,
-            .main-glass-frame h3:first-of-type {{
-                margin-top: 0 !important;
-                padding-top: 0 !important;
-            }}
-
-            p, span, h1, h2, h3, h4, h5, h6, li, label, .stMarkdown {{ color: #0F172A !important; }}
+            /* Responsive Grid & Columns */
+            [data-testid="column"] {
+                width: 100% !important;
+                flex: 1 1 auto !important;
+            }
             
-            input, textarea, select, 
-            div[data-testid="stTextInput"] input, 
-            div[data-testid="stTextArea"] textarea, 
-            div[data-testid="stDateInput"] input, 
-            div[data-testid="stNumberInput"] input, 
-            div[data-baseweb="select"] div {{
-                color: #0F172A !important; 
-                -webkit-text-fill-color: #0F172A !important;
-                background-color: white !important;
-                border-color: #CBD5E1 !important;
-            }}
+            /* Card Style untuk elemen Dashboard */
+            .stMetric, .stDataFrame, .stExpander {
+                background: white !important;
+                border: 1px solid #E2E8F0 !important;
+                border-radius: 10px !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+            }
             
-            .stDataFrame [data-testid="stTable"] th, 
-            .stDataFrame [data-testid="stTable"] td, 
-            .stDataFrame [data-baseweb="table-header"] {{
-                color: #0F172A !important;
-                background-color: transparent !important;
-            }}
+            /* Input & Select Scaling */
+            .stTextInput input, .stSelectbox div {
+                height: 2.8rem !important;
+                font-size: 1rem !important;
+            }
             </style>
         """, unsafe_allow_html=True)

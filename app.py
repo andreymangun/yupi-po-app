@@ -32,19 +32,21 @@ from utils.ai_engine import get_ai_response
 inject_css()
 
 if not st.session_state["logged_in"]:
-    st.markdown('<div style="height:12vh;"></div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1.3, 1])
+    st.markdown('<div style="height:10vh;"></div>', unsafe_allow_html=True)
+    
+    # Gunakan perbandingan kolom yang lebih adaptif (1:2:1)
+    c1, c2, c3 = st.columns([1, 2, 1]) 
     with c2:
         st.markdown('<h1 class="login-logo-text">ServeOne</h1>', unsafe_allow_html=True)
-        st.markdown('<p style="text-align: center; color: rgba(255,255,255,0.9); letter-spacing: 3px; font-weight: bold; margin-bottom: 30px;">ENTERPRISE PORTAL</p>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align: center; color: white; letter-spacing: 2px; font-weight: 500; margin-bottom: 2rem;">ENTERPRISE PORTAL</p>', unsafe_allow_html=True)
         with st.form("login_form"):
-            u = st.text_input("Username / Email")
+            u = st.text_input("Username")
             p = st.text_input("Password", type="password")
             if st.form_submit_button("Masuk Sistem", use_container_width=True, type="primary"):
-                try:
-                    if login(u, p): st.session_state["logged_in"] = True; st.rerun()
-                    else: st.error("Kredensial salah.")
-                except Exception as e: st.error(f"Error sistem: {str(e)}")
+                if login(u, p): 
+                    st.session_state["logged_in"] = True; st.rerun()
+                else: 
+                    st.error("Kredensial salah.")
 else:
     render_topbar()
     user = st.session_state["current_user"]
