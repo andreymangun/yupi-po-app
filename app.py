@@ -32,21 +32,19 @@ from utils.ai_engine import get_ai_response
 inject_css()
 
 if not st.session_state["logged_in"]:
-    st.markdown('<div style="height:10vh;"></div>', unsafe_allow_html=True)
-    
-    # Gunakan perbandingan kolom yang lebih adaptif (1:2:1)
-    c1, c2, c3 = st.columns([1, 2, 1]) 
+    st.markdown('<div style="height:12vh;"></div>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 1.3, 1])
     with c2:
         st.markdown('<h1 class="login-logo-text">ServeOne</h1>', unsafe_allow_html=True)
-        st.markdown('<p style="text-align: center; color: white; letter-spacing: 2px; font-weight: 500; margin-bottom: 2rem;">ENTERPRISE PORTAL</p>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align: center; color: rgba(255,255,255,0.9); letter-spacing: 3px; font-weight: bold; margin-bottom: 30px;">ENTERPRISE PORTAL</p>', unsafe_allow_html=True)
         with st.form("login_form"):
-            u = st.text_input("Username")
+            u = st.text_input("Username / Email")
             p = st.text_input("Password", type="password")
             if st.form_submit_button("Masuk Sistem", use_container_width=True, type="primary"):
-                if login(u, p): 
-                    st.session_state["logged_in"] = True; st.rerun()
-                else: 
-                    st.error("Kredensial salah.")
+                try:
+                    if login(u, p): st.session_state["logged_in"] = True; st.rerun()
+                    else: st.error("Kredensial salah.")
+                except Exception as e: st.error(f"Error sistem: {str(e)}")
 else:
     render_topbar()
     user = st.session_state["current_user"]
@@ -72,18 +70,37 @@ else:
         greeting = "Pagi" if datetime.now().hour < 12 else ("Siang" if datetime.now().hour < 17 else "Sore")
         st.markdown(f"<h2 style='color: #1E293B; margin-top: 0px;'>Selamat {greeting}, {user.get('name')} ✨</h2><hr style='margin:10px 0; border-color: rgba(0,0,0,0.1);'>", unsafe_allow_html=True)
         
+        # PERBAIKAN CSS TOMBOL: Tinggi dipaksa sama (min-height 110px) dan teks disejajarkan ke tengah
         st.markdown("""<style>
-        div[data-testid="column"] div[data-testid="stButton"] button { background: rgba(255,255,255,0.9) !important; height: 90px; border-radius: 15px !important; border: 1px solid rgba(0,0,0,0.1) !important; transition: 0.3s !important; color: #1E293B !important; font-weight: bold !important; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        div[data-testid="column"] div[data-testid="stButton"] button:hover { transform: translateY(-3px); border-color: #8B0000 !important; background: white !important; }
+        div[data-testid="column"] div[data-testid="stButton"] button { 
+            background: rgba(255,255,255,0.9) !important; 
+            min-height: 110px !important; 
+            border-radius: 15px !important; 
+            border: 1px solid rgba(0,0,0,0.1) !important; 
+            transition: 0.3s !important; 
+            color: #1E293B !important; 
+            font-weight: bold !important; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: pre-wrap !important;
+        }
+        div[data-testid="column"] div[data-testid="stButton"] button:hover { 
+            transform: translateY(-3px); 
+            border-color: #8B0000 !important; 
+            background: white !important; 
+        }
         </style>""", unsafe_allow_html=True)
         
         m1, m2, m3 = st.columns(3)
         with m1:
             if st.button("📦 OPERATION\nPO & DN", use_container_width=True): st.switch_page("pages/1_🚚_Operation.py")
         with m2:
-            if st.button("📸 ATTENDANCE \n HR & Absen (Under Development)", use_container_width=True): st.switch_page("pages/2_📸_Attendance.py")
+            # Teks dipersingkat sedikit menjadi "Under Dev" agar tidak merusak lebar tombol
+            if st.button("📸 ATTENDANCE\nHR & Absen\n(Under Dev)", use_container_width=True): st.switch_page("pages/2_📸_Attendance.py")
         with m3:
-            if st.button("✅ TO DO LIST \n Kanban (Under Development)", use_container_width=True): st.switch_page("pages/3_✅_To_Do_List.py")
+            if st.button("✅ TO DO LIST\nKanban\n(Under Dev)", use_container_width=True): st.switch_page("pages/3_✅_To_Do_List.py")
 
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -95,7 +112,7 @@ else:
         with c_right:
             s = "padding: 10px; border-radius: 15px; background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.1); text-align: center; margin-bottom: 10px;"
             c1, c2 = st.columns(2)
-            with c1: st.markdown(f"<div style='{s}'><small style='color:#475569; font-weight:bold;'>PO AKTIF</small><br><b style='font-size:1.5rem; color:#1E293B;'>12</b></div>", unsafe_allow_html=True)
+            # PERBAIKAN: Salah satu "PO AKTIF" sudah dihapus
             with c1: st.markdown(f"<div style='{s}'><small style='color:#475569; font-weight:bold;'>PO AKTIF</small><br><b style='font-size:1.5rem; color:#1E293B;'>12</b></div>", unsafe_allow_html=True)
             with c2: st.markdown(f"<div style='{s}'><small style='color:#475569; font-weight:bold;'>TASKS</small><br><b style='font-size:1.5rem; color:#1E293B;'>5</b></div>", unsafe_allow_html=True)
             c3, c4 = st.columns(2)

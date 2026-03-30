@@ -5,24 +5,29 @@ from datetime import date
 # 1. KONFIGURASI HARUS PALING ATAS
 st.set_page_config(page_title="Operation System", page_icon="🚚", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. INISIALISASI MEMORI BRUTAL DI SETIAP HALAMAN
+# 2. INISIALISASI MEMORI AMAN (Pencegah Error Merah)
 from utils.state import init_session
 init_session()
 
-# PERLINDUNGAN EKSTRA DI HALAMAN OPERATION
-state_keys = [
-    "op_step", "generated_po_bytes", "generated_po_filename", 
-    "g_dn_bytes", "g_dn_file", "g_po_bytes", "g_po_file", 
-    "search_po_input", "copilot_history", "dn_counter_data"
-]
-for key in state_keys:
+# Pastikan semua kunci yang dipakai di halaman ini benar-benar ada di memori
+state_keys = {
+    "op_step": 1, 
+    "operation_df": None,
+    "generated_po_bytes": None, 
+    "generated_po_filename": None, 
+    "g_dn_bytes": None, 
+    "g_dn_file": None, 
+    "g_po_bytes": None, 
+    "g_po_file": None, 
+    "search_po_input": "", 
+    "copilot_history": [{"role": "assistant", "content": "Halo! Ketik nomor PO atau Vendor, saya akan merekap statusnya."}], 
+    "dn_counter_data": {}
+}
+for key, val in state_keys.items():
     if key not in st.session_state:
-        if key == "op_step": st.session_state[key] = 1
-        elif key == "copilot_history": st.session_state[key] = [{"role": "assistant", "content": "Halo! Ketik nomor PO atau Vendor, saya akan merekap statusnya."}]
-        elif key == "dn_counter_data": st.session_state[key] = {}
-        elif key == "search_po_input": st.session_state[key] = ""
-        else: st.session_state[key] = None
+        st.session_state[key] = val
 
+# 3. IMPORTS CUSTOM
 from utils.auth import require_login
 from utils.theme import inject_css
 from utils.topbar import render_topbar
@@ -40,25 +45,24 @@ inject_css()
 require_login()
 render_topbar()
 
+# 4. LAYOUT UTAMA
 col_main, col_ai = st.columns([3.5, 1.5], gap="large")
 
 with col_ai:
-    # FRAME DIHILANGKAN
-    st.markdown("<h3 style='color:#1E293B; margin-top:0px;'>🤖 OpenClaw Copilot</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#1E293B; margin-top:0px;'>🤖 Tanyadah (Under Development)</h3>", unsafe_allow_html=True)
     st.info("Pusat asisten terintegrasi untuk merekap status vendor.")
     
     chat_container = st.container(height=500, border=True)
-    for msg in st.session_state.copilot_history:
+    for msg in st.session_state["copilot_history"]:
         chat_container.chat_message(msg["role"]).write(msg["content"])
         
     prompt = st.chat_input("Tanya OpenClaw...")
     if prompt:
-        st.session_state.copilot_history.append({"role": "user", "content": prompt})
-        st.session_state.copilot_history.append({"role": "assistant", "content": f"⏳ Menganalisis '{prompt}'..."})
+        st.session_state["copilot_history"].append({"role": "user", "content": prompt})
+        st.session_state["copilot_history"].append({"role": "assistant", "content": f"⏳ Menganalisis '{prompt}'..."})
         st.rerun()
 
 with col_main:
-    # FRAME DIHILANGKAN
     st.markdown("<h2 style='color:#1E293B; margin-top:0px;'>🚚 Operation System</h2>", unsafe_allow_html=True)
     
     st.markdown("""
@@ -76,7 +80,7 @@ with col_main:
         "Spare Part/Consumable (SP)": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS14-HlMoSqURQRmhyDdhOcQnneBZC48ccsFaGd5lDu39f9uSyBl3EIFeIGTjqmRoFoyESG3YHqZh58/pub?gid=0&single=true&output=csv"
     }
 
-    pilihan_kategori = st.radio("Pilih Kategori :", list(kategori_sheet.keys()), horizontal=True)
+    pilihan_kategori = st.radio("Pilih Kategori Kebutuhan:", list(kategori_sheet.keys()), horizontal=True)
     csv_url = kategori_sheet[pilihan_kategori]
     
     if "Raw" in pilihan_kategori: cat_code = "RM"
@@ -100,27 +104,33 @@ with col_main:
 
     def get_custom_dn_number():
         month_key = date.today().strftime("%m%Y")
-        if month_key not in st.session_state.dn_counter_data: st.session_state.dn_counter_data[month_key] = {"RM": 1, "PM": 1, "SP": 1}
-        current_num = st.session_state.dn_counter_data[month_key].get(cat_code, 1)
+        if month_key not in st.session_state["dn_counter_data"]: 
+            st.session_state["dn_counter_data"][month_key] = {"RM": 1, "PM": 1, "SP": 1}
+        current_num = st.session_state["dn_counter_data"][month_key].get(cat_code, 1)
         date_str = date.today().strftime('%d%m%Y')
         return f"DS/{cat_code}/{date_str}/{current_num:03d}"
 
     def bump_custom_dn_counter():
         month_key = date.today().strftime("%m%Y")
-        if month_key in st.session_state.dn_counter_data:
-            st.session_state.dn_counter_data[month_key][cat_code] += 1
+        if month_key in st.session_state["dn_counter_data"]:
+            st.session_state["dn_counter_data"][month_key][cat_code] += 1
 
     col_load, col_clear = st.columns(2)
     with col_load:
         if st.button("Muat Data Kategori", use_container_width=True):
             with st.spinner("Memuat data dari Google Sheet..."):
                 df_loaded = load_operation_data(csv_url)
+                st.session_state["operation_df"] = df_loaded # Simpan langsung ke memori
             st.success(f"Data dimuat. Total {len(df_loaded)} baris.")
     with col_clear:
         if st.button("Clear Data Lokal", use_container_width=True):
             clear_operation_data()
+            st.session_state["operation_df"] = None
             st.success("Data berhasil dibersihkan.")
 
+    # ==========================================
+    # PERBAIKAN UTAMA: AMBIL DATA DENGAN AMAN (.get)
+    # ==========================================
     df = st.session_state.get("operation_df")
     
     if df is not None and not df.empty:
@@ -139,18 +149,17 @@ with col_main:
             available_dates = ["Semua Tanggal"]
             if date_col:
                 try:
-                     clean_dates = []
-                     for d in df[date_col].dropna().unique(): clean_dates.append(str(d))
-                     def sort_key(date_str):
-                         try: return pd.to_datetime(date_str + f"-{date.today().year}", format='%d-%b-%Y')
-                         except:
-                             try: return pd.to_datetime(date_str)
-                             except: return pd.Timestamp('1970-01-01')
-                     clean_dates_sorted = sorted(clean_dates, key=sort_key)
-                     available_dates.extend(clean_dates_sorted)
+                    clean_dates = [str(d) for d in df[date_col].dropna().unique()]
+                    def sort_key(date_str):
+                        try: return pd.to_datetime(date_str + f"-{date.today().year}", format='%d-%b-%Y')
+                        except:
+                            try: return pd.to_datetime(date_str)
+                            except: return pd.Timestamp('1970-01-01')
+                    clean_dates_sorted = sorted(clean_dates, key=sort_key)
+                    available_dates.extend(clean_dates_sorted)
                 except Exception:
-                     clean_dates = df[date_col].dropna().astype(str).unique().tolist()
-                     available_dates.extend(sorted(clean_dates))
+                    clean_dates = df[date_col].dropna().astype(str).unique().tolist()
+                    available_dates.extend(sorted(clean_dates))
 
             col_paste, col_date = st.columns([2, 1])
             with col_paste: 
@@ -168,7 +177,7 @@ with col_main:
                 st.stop()
 
             selected_po = None
-            search_query = st.session_state.search_po_input.strip().lower()
+            search_query = st.session_state["search_po_input"].strip().lower()
             
             if search_query:
                 matching_pos = [po for po in po_numbers if search_query in str(po).lower()]
@@ -197,19 +206,19 @@ with col_main:
                     df_for_pdf["Catatan / Remark"] = ""
                     with st.spinner("Mencetak PDF..."):
                         site_lbl = get_site_name(df_for_pdf)
-                        st.session_state.generated_po_bytes = build_po_pdf_bytes(df_for_pdf)
-                        st.session_state.generated_po_filename = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
+                        st.session_state["generated_po_bytes"] = build_po_pdf_bytes(df_for_pdf)
+                        st.session_state["generated_po_filename"] = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
                 if st.session_state.get("generated_po_bytes"):
-                    st.download_button("⬇️ Download PO PDF", data=st.session_state.generated_po_bytes, file_name=st.session_state.generated_po_filename, mime="application/pdf", use_container_width=True, key="dl_fast_po")
+                    st.download_button("⬇️ Download PO PDF", data=st.session_state["generated_po_bytes"], file_name=st.session_state["generated_po_filename"], mime="application/pdf", use_container_width=True, key="dl_fast_po")
 
             st.markdown("### ⚙️ Mode Lanjut (Custom Edit)")
             step1_col, step2_col, step3_col = st.columns(3)
             with step1_col:
-                if st.button("Step 1 • Preview", use_container_width=True): st.session_state.op_step = 1
+                if st.button("Step 1 • Preview", use_container_width=True): st.session_state["op_step"] = 1
             with step2_col:
-                if st.button("Step 2 • Pilih & Edit", use_container_width=True): st.session_state.op_step = 2
+                if st.button("Step 2 • Pilih & Edit", use_container_width=True): st.session_state["op_step"] = 2
             with step3_col:
-                if st.button("Step 3 • Generate", use_container_width=True): st.session_state.op_step = 3
+                if st.button("Step 3 • Generate", use_container_width=True): st.session_state["op_step"] = 3
 
             curr_step = st.session_state.get("op_step", 1)
             edit_key = f"edit_baru_{selected_po}_{mode_aktif}"
@@ -249,11 +258,11 @@ with col_main:
                     col_cfg["Catatan / Remark"] = st.column_config.TextColumn("Remark (Edit di bawah)", disabled=True)
 
                 st.write("**1. Daftar Item:**")
-                st.info("Centang pada kolom 'Cetak Dok.' HANYA untuk item yang ingin dimasukkan ke PDF. Lalu klik Simpan Item Terpilih")
+                st.info("Centang pada kolom 'Cetak Dok.' HANYA untuk item yang ingin dimasukkan ke PDF.")
                 
                 with st.form(f"frm_grid_{selected_po}_{mode_aktif}"):
                     edited_df = st.data_editor(current_edit_df, use_container_width=True, hide_index=True, column_config=col_cfg)
-                    save_grid = st.form_submit_button("Simpan Item Terpilih", use_container_width=True)
+                    save_grid = st.form_submit_button("Simpan Status Centang", use_container_width=True)
                 
                 if save_grid:
                     st.session_state[edit_key] = edited_df
@@ -281,7 +290,7 @@ with col_main:
                             
                             if cat_code == "RM":
                                 new_batch = st.text_area("No Batch", value=str(row_data.get("No Batch", "")).replace("nan",""), help="Tekan Enter untuk baris baru")
-                                new_jml = st.text_area("Jumlah Batch", value=str(row_data.get("Jml Batch", "")).replace("nan",""))
+                                new_jml = st.text_area("Jml Batch", value=str(row_data.get("Jml Batch", "")).replace("nan",""))
                                 new_exp = st.text_area("Expired Date", value=str(row_data.get("Expired Date", "")).replace("nan",""))
                             elif cat_code == "PM":
                                 new_coding = st.text_area("Coding", value=str(row_data.get("Coding", "")).replace("nan",""))
@@ -329,33 +338,34 @@ with col_main:
                 df_pdf = df_pdf.iloc[selected_indices].copy().reset_index(drop=True)
 
                 if mode_aktif == "DELIVERY NOTE":
-                    st.subheader("🧾 Input SJ & No. Pol(DN)")
+                    st.subheader("🧾 Pengaturan Kurir (DN)")
                     d1, d2, d3 = st.columns(3)
-                    with d1: dn_ven = st.text_input("No. Surat Jalan Vendor")
+                    with d1: dn_ven = st.text_input("Vendor / Pengirim")
                     with d2: dn_pol = st.text_input("No. Polisi")
                     with d3: st.text_input("Preview DN", value=get_custom_dn_number(), disabled=True)
                     
-                    if st.button("📄 Cetak (DN)", use_container_width=True, type="primary"):
+                    if st.button("📄 Cetak Kustom (DN)", use_container_width=True, type="primary"):
                         c_dn = get_custom_dn_number()
                         pdf_bytes, site_lbl, ven_name = generate_dn_pdf(po_data=df_pdf, po_number=selected_po, dn_vendor=dn_ven, no_pol=dn_pol, dn_remarks="", dn_serveone_number=c_dn, category=cat_code)
                         
                         site_lbl = get_site_name(df_pdf)
-                        st.session_state.g_dn_bytes = pdf_bytes
-                        st.session_state.g_dn_file = f"[{site_lbl}] DN - {selected_po} - {selected_vendor}.pdf"
+                        st.session_state["g_dn_bytes"] = pdf_bytes
+                        st.session_state["g_dn_file"] = f"[{site_lbl}] DN - {selected_po} - {selected_vendor}.pdf"
                         st.success("Dokumen berhasil dibuat.")
                         
                     if st.session_state.get("g_dn_bytes"):
-                        if st.download_button("⬇️ Download DN", data=st.session_state.g_dn_bytes, file_name=st.session_state.g_dn_file, mime="application/pdf", use_container_width=True, key="dl_c_dn"):
-                            bump_custom_dn_counter(); st.session_state.g_dn_bytes = None
+                        if st.download_button("⬇️ Download DN", data=st.session_state["g_dn_bytes"], file_name=st.session_state["g_dn_file"], mime="application/pdf", use_container_width=True, key="dl_c_dn"):
+                            bump_custom_dn_counter()
+                            st.session_state["g_dn_bytes"] = None
 
                 elif mode_aktif == "PURCHASE ORDER":
-                    if st.button("📄 Cetak (PO)", use_container_width=True, type="primary"):
+                    if st.button("📄 Cetak Kustom (PO)", use_container_width=True, type="primary"):
                         site_lbl = get_site_name(df_pdf)
-                        st.session_state.g_po_bytes = build_po_pdf_bytes(df_pdf)
-                        st.session_state.g_po_file = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
+                        st.session_state["g_po_bytes"] = build_po_pdf_bytes(df_pdf)
+                        st.session_state["g_po_file"] = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
                         st.success("Dokumen berhasil dibuat.")
                     if st.session_state.get("g_po_bytes"):
-                        st.download_button("⬇️ Download PO", data=st.session_state.g_po_bytes, file_name=st.session_state.g_po_file, mime="application/pdf", use_container_width=True, key="dl_c_po")
+                        st.download_button("⬇️ Download PO", data=st.session_state["g_po_bytes"], file_name=st.session_state["g_po_file"], mime="application/pdf", use_container_width=True, key="dl_c_po")
 
         elif mode_aktif == "SUMMARY":
             st.subheader(f"📊 Enterprise Summary: {pilihan_kategori}")
