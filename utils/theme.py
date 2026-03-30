@@ -14,45 +14,40 @@ def inject_css():
     bg_base64 = get_base64_image("background_login_form.png")
     is_logged_in = st.session_state.get("logged_in", False)
     
-    # CSS DASAR UNTUK SEMUA HALAMAN
+    # CSS GLOBAL
     base_css = """
     <style>
-    /* 1. Sembunyikan Header Streamlit */
+    /* 1. Sembunyikan Header */
     [data-testid="stHeader"] { visibility: hidden; height: 0px; }
     .stDeployButton { display: none; }
     
-    /* 2. RESPONSIVE ROOT: Mengatur ukuran dasar teks agar tidak terlalu besar */
-    html { font-size: 14px; } /* Standar pengecilan dari 16px default */
-    
-    @media (max-width: 1400px) { html { font-size: 13px; } }
-    @media (max-width: 1024px) { html { font-size: 12px; } }
-    
-    /* 3. Pengaturan Kontainer Utama */
+    /* 2. Pengaturan Font Dasar agar tidak raksasa */
+    html { font-size: 14px; } 
+
+    /* 3. Kontainer Utama */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        max-width: 95% !important; /* Agar tidak terlalu mepet ke pinggir tapi tetap luas */
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+        max-width: 95% !important;
     }
 
-    /* 4. Login Logo Typography */
+    /* 4. Tampilan Login */
     .login-logo-text { 
         color: white; 
-        font-size: 4.5rem; 
+        font-size: 4rem; 
         font-weight: 900; 
         text-align: center; 
         text-shadow: 0px 8px 20px rgba(0,0,0,0.5); 
-        margin-bottom: 0px;
     }
     
-    /* 5. Responsive Form Login */
     div[data-testid="stForm"] {
         background: rgba(255,255,255,0.1) !important;
         backdrop-filter: blur(20px);
         border-radius: 15px;
         border: 1px solid rgba(255,255,255,0.2);
-        padding: 2.5rem !important;
+        padding: 2rem !important;
         width: 100% !important;
-        max-width: 400px !important; /* Maksimal lebar form agar tidak melar */
+        max-width: 400px !important;
         margin: 0 auto;
     }
     </style>
@@ -71,34 +66,38 @@ def inject_css():
         """ if bg_base64 else ""
         st.markdown(base_css + bg_style, unsafe_allow_html=True)
     else:
-        # Tampilan setelah Login (Dashboard & Operation)
+        # --- PERBAIKAN LOGIKA RESPONSIVE DISINI ---
         st.markdown(base_css + """
             <style>
             .stApp { background-color: #F8FAFC !important; }
             
-            /* Typography Seimbang */
-            h1 { font-size: 2.2rem !important; font-weight: 800 !important; color: #1E293B !important; }
-            h2 { font-size: 1.8rem !important; font-weight: 700 !important; color: #1E293B !important; }
-            h3 { font-size: 1.4rem !important; font-weight: 600 !important; color: #1E293B !important; }
+            /* Judul yang proporsional */
+            h1 { font-size: 2rem !important; color: #1E293B !important; }
+            h2 { font-size: 1.6rem !important; color: #1E293B !important; }
+            h3 { font-size: 1.3rem !important; color: #1E293B !important; }
             
-            /* Responsive Grid & Columns */
-            [data-testid="column"] {
-                width: 100% !important;
-                flex: 1 1 auto !important;
+            /* HANYA gunakan width 100% (tumpuk vertikal) jika layar di bawah 768px (HP).
+               Jika di komputer (layar lebar), biarkan Streamlit mengatur kolom secara horizontal.
+            */
+            @media (max-width: 768px) {
+                [data-testid="column"] {
+                    width: 100% !important;
+                    flex: 1 1 auto !important;
+                    min-width: 100% !important;
+                }
             }
             
-            /* Card Style untuk elemen Dashboard */
-            .stMetric, .stDataFrame, .stExpander {
+            /* Berikan sedikit nafas antar kartu */
+            .stMetric, .stDataFrame, div[data-testid="stExpander"] {
                 background: white !important;
                 border: 1px solid #E2E8F0 !important;
-                border-radius: 10px !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+                border-radius: 8px !important;
+                margin-bottom: 1rem !important;
             }
             
-            /* Input & Select Scaling */
+            /* Input yang pas ukurannya */
             .stTextInput input, .stSelectbox div {
-                height: 2.8rem !important;
-                font-size: 1rem !important;
+                font-size: 0.95rem !important;
             }
             </style>
         """, unsafe_allow_html=True)
