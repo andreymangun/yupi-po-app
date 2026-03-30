@@ -1,0 +1,7 @@
+streamlit
+pandas
+fpdf2
+requests
+python-dotenv
+supabase
+numpy

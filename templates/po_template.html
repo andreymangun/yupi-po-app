@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 10px; }
+        .header-table { width: 100%; margin-bottom: 20px; }
+        .item-table { width: 100%; border-collapse: collapse; }
+        .item-table th, .item-table td { border: 1px solid black; padding: 5px; text-align: left; }
+        .title { font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div style="text-align: right; margin-bottom: 20px;">
+        <div>PO YUPI: {{ header.po_number }}</div>
+        <div>PO Date: {{ header.po_date }}</div>
+    </div>
+
+    <table class="header-table">
+        <tr>
+            <td width="50%">
+                <strong>Delivery Address:</strong><br>
+                PT. YUPI INDO JELLY GUM Tbk({{ header.site }})-PM<br>
+            </td>
+            <td width="50%">
+                <strong>VENDOR:</strong><br>
+                {{ header.vendor_name }}<br>
+            </td>
+        </tr>
+    </table>
+
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th>Delivery Req Date</th>
+                <th>SVO ID / PO SEMENTARA</th>
+                <th>Item Code</th>
+                <th>Item Name & Spec</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Price</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item['Req. Dlv Date'] }}</td>
+                <td>{{ item['PO SEMENTARA'] }}</td>
+                <td>{{ item['Item Yupi'] }}</td>
+                <td>{{ item['Item name'] }}<br>{{ item['Spec'] }}</td>
+                <td>{{ "{:,.2f}".format(item['Ord. Q\'ty']) }}</td>
+                <td>{{ item['Unit'] }}</td>
+                <td>IDR {{ "{:,.2f}".format(item['Unit Price']) }}</td>
+                <td>IDR {{ "{:,.2f}".format(item['AMOUNT']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

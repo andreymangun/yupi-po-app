@@ -1,0 +1,14 @@
+# Abaikan folder environment dan library lokal
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+__pycache__/
+*.pyc
+
+# Abaikan file Streamlit lokal
+.streamlit/openai_key.txt 
+groq_key.txt 
+openai_key.txt 
+groq_key.txt 
+.streamlit/secrets.toml 
