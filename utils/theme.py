@@ -14,90 +14,81 @@ def inject_css():
     bg_base64 = get_base64_image("background_login_form.png")
     is_logged_in = st.session_state.get("logged_in", False)
     
-    # CSS GLOBAL
-    base_css = """
+    # CSS GLOBAL (Sembunyikan elemen bawaan Streamlit yang mengganggu)
+    global_css = """
     <style>
-    /* 1. Sembunyikan Header */
     [data-testid="stHeader"] { visibility: hidden; height: 0px; }
     .stDeployButton { display: none; }
+    #MainMenu { visibility: hidden; }
     
-    /* 2. Pengaturan Font Dasar agar tidak raksasa */
+    /* Ukuran font dasar agar tidak 'raksasa' */
     html { font-size: 14px; } 
 
-    /* 3. Kontainer Utama */
+    /* Lebar konten utama */
     .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 1.5rem !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
         max-width: 95% !important;
-    }
-
-    /* 4. Tampilan Login */
-    .login-logo-text { 
-        color: white; 
-        font-size: 4rem; 
-        font-weight: 900; 
-        text-align: center; 
-        text-shadow: 0px 8px 20px rgba(0,0,0,0.5); 
-    }
-    
-    div[data-testid="stForm"] {
-        background: rgba(255,255,255,0.1) !important;
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        border: 1px solid rgba(255,255,255,0.2);
-        padding: 2rem !important;
-        width: 100% !important;
-        max-width: 400px !important;
-        margin: 0 auto;
     }
     </style>
     """
 
     if not is_logged_in:
+        # Tampilan Login
         bg_style = f"""
         <style>
         .stApp {{
             background-image: url("data:image/png;base64,{bg_base64}");
             background-size: cover;
             background-position: center;
-            background-attachment: fixed;
+        }}
+        .login-logo-text {{ 
+            color: white; font-size: 4rem; font-weight: 900; text-align: center; 
+            text-shadow: 0px 8px 20px rgba(0,0,0,0.5); 
+        }}
+        div[data-testid="stForm"] {{
+            background: rgba(255,255,255,0.1) !important;
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 2rem !important;
+            max-width: 400px !important;
+            margin: 0 auto;
         }}
         </style>
         """ if bg_base64 else ""
-        st.markdown(base_css + bg_style, unsafe_allow_html=True)
+        st.markdown(global_css + bg_style, unsafe_allow_html=True)
     else:
-        # --- PERBAIKAN LOGIKA RESPONSIVE DISINI ---
-        st.markdown(base_css + """
+        # Tampilan Dashboard & Operation
+        st.markdown(global_css + """
             <style>
             .stApp { background-color: #F8FAFC !important; }
             
-            /* Judul yang proporsional */
-            h1 { font-size: 2rem !important; color: #1E293B !important; }
-            h2 { font-size: 1.6rem !important; color: #1E293B !important; }
-            h3 { font-size: 1.3rem !important; color: #1E293B !important; }
-            
-            /* HANYA gunakan width 100% (tumpuk vertikal) jika layar di bawah 768px (HP).
-               Jika di komputer (layar lebar), biarkan Streamlit mengatur kolom secara horizontal.
-            */
+            /* Typography yang Proporsional */
+            h1 { font-size: 2rem !important; }
+            h2 { font-size: 1.6rem !important; }
+            h3 { font-size: 1.2rem !important; }
+
+            /* --- FIX KOLOM BERTUMPUK --- */
+            /* Di Desktop (>768px), paksa kolom agar TIDAK bertumpuk */
+            @media (min-width: 769px) {
+                div[data-testid="column"] {
+                    flex: 1 1 0% !important;
+                    min-width: 0 !important;
+                }
+            }
+
+            /* Di HP (<768px), baru biarkan bertumpuk */
             @media (max-width: 768px) {
-                [data-testid="column"] {
-                    width: 100% !important;
-                    flex: 1 1 auto !important;
+                div[data-testid="column"] {
                     min-width: 100% !important;
                 }
             }
-            
-            /* Berikan sedikit nafas antar kartu */
+
+            /* Styling Card / Frame agar lebih padat */
             .stMetric, .stDataFrame, div[data-testid="stExpander"] {
                 background: white !important;
                 border: 1px solid #E2E8F0 !important;
                 border-radius: 8px !important;
-                margin-bottom: 1rem !important;
-            }
-            
-            /* Input yang pas ukurannya */
-            .stTextInput input, .stSelectbox div {
-                font-size: 0.95rem !important;
             }
             </style>
         """, unsafe_allow_html=True)
