@@ -14,20 +14,20 @@ def inject_css():
     bg_base64 = get_base64_image("background_login_form.png")
     is_logged_in = st.session_state.get("logged_in", False)
     
-    # CSS GLOBAL (Sembunyikan elemen bawaan Streamlit yang mengganggu)
+    # CSS GLOBAL: Sembunyikan header dan perkecil ukuran UI secara keseluruhan
     global_css = """
     <style>
     [data-testid="stHeader"] { visibility: hidden; height: 0px; }
     .stDeployButton { display: none; }
     #MainMenu { visibility: hidden; }
     
-    /* Ukuran font dasar agar tidak 'raksasa' */
-    html { font-size: 14px; } 
+    /* Ini akan mengecilkan seluruh tampilan aplikasi sekitar 10% agar tidak "Raksasa" */
+    html { font-size: 90%; } 
 
     /* Lebar konten utama */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
         max-width: 95% !important;
     }
     </style>
@@ -43,7 +43,7 @@ def inject_css():
             background-position: center;
         }}
         .login-logo-text {{ 
-            color: white; font-size: 4rem; font-weight: 900; text-align: center; 
+            color: white; font-size: 3.5rem; font-weight: 900; text-align: center; 
             text-shadow: 0px 8px 20px rgba(0,0,0,0.5); 
         }}
         div[data-testid="stForm"] {{
@@ -62,13 +62,8 @@ def inject_css():
         st.markdown(global_css + """
             <style>
             .stApp { background-color: #F8FAFC !important; }
-            
-            /* Typography yang Proporsional */
-            h1 { font-size: 2rem !important; }
-            h2 { font-size: 1.6rem !important; }
-            h3 { font-size: 1.2rem !important; }
 
-            /* Styling Card / Frame agar lebih padat */
+            /* Mempertegas warna dan memberikan background putih pada box */
             .stMetric, .stDataFrame, div[data-testid="stExpander"] {
                 background: white !important;
                 border: 1px solid #E2E8F0 !important;
