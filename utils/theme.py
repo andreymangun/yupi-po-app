@@ -68,22 +68,6 @@ def inject_css():
             h2 { font-size: 1.6rem !important; }
             h3 { font-size: 1.2rem !important; }
 
-            /* --- FIX KOLOM BERTUMPUK --- */
-            /* Di Desktop (>768px), paksa kolom agar TIDAK bertumpuk */
-            @media (min-width: 769px) {
-                div[data-testid="column"] {
-                    flex: 1 1 0% !important;
-                    min-width: 0 !important;
-                }
-            }
-
-            /* Di HP (<768px), baru biarkan bertumpuk */
-            @media (max-width: 768px) {
-                div[data-testid="column"] {
-                    min-width: 100% !important;
-                }
-            }
-
             /* Styling Card / Frame agar lebih padat */
             .stMetric, .stDataFrame, div[data-testid="stExpander"] {
                 background: white !important;
