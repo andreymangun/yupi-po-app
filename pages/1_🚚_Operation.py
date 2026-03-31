@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import date
 
 # 1. KONFIGURASI HARUS PALING ATAS
@@ -80,7 +81,7 @@ with col_main:
         "Spare Part/Consumable (SP)": "https://docs.google.com/spreadsheets/d/e/2PACX-1vS14-HlMoSqURQRmhyDdhOcQnneBZC48ccsFaGd5lDu39f9uSyBl3EIFeIGTjqmRoFoyESG3YHqZh58/pub?gid=0&single=true&output=csv"
     }
 
-    pilihan_kategori = st.radio("Pilih Kategori Kebutuhan:", list(kategori_sheet.keys()), horizontal=True)
+    pilihan_kategori = st.radio("Pilih Kategori :", list(kategori_sheet.keys()), horizontal=True)
     csv_url = kategori_sheet[pilihan_kategori]
     
     if "Raw" in pilihan_kategori: cat_code = "RM"
@@ -97,30 +98,57 @@ with col_main:
                     if not valid_rows.empty:
                         site_val = str(valid_rows.iloc[0]).upper()
                         if "IDN" in site_val or "GUNUNG PUTRI" in site_val or "GNP" in site_val: site = "IDN"
-                        elif "KRG" in site_val or "KARANGJATI" in site_val: site = "KRG"
+                        elif "KRG" in site_val or "KARANGANYAR" in site_val: site = "KRG"
                         break 
         except: pass
         return site
 
-    def get_custom_dn_number():
-        month_key = date.today().strftime("%m%Y")
-        if month_key not in st.session_state["dn_counter_data"]: 
-            st.session_state["dn_counter_data"][month_key] = {"RM": 1, "PM": 1, "SP": 1}
-        current_num = st.session_state["dn_counter_data"][month_key].get(cat_code, 1)
-        date_str = date.today().strftime('%d%m%Y')
-        return f"DS/{cat_code}/{date_str}/{current_num:03d}"
+    def get_db_headers():
+        try:
+            key = st.secrets["supabase"]["key"]
+            return {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+        except: return {}
 
-    def bump_custom_dn_counter():
-        month_key = date.today().strftime("%m%Y")
-        if month_key in st.session_state["dn_counter_data"]:
-            st.session_state["dn_counter_data"][month_key][cat_code] += 1
+    def get_custom_dn_number():
+        date_str = date.today().strftime('%d%m%Y')
+        prefix = f"DS/{cat_code}/{date_str}/"
+        try:
+            url = f"{st.secrets['supabase']['url']}/rest/v1/document_history?select=doc_number&doc_type=eq.DN&doc_number=like.{prefix}*&order=created_at.desc&limit=1"
+            res = requests.get(url, headers=get_db_headers())
+            if res.status_code == 200 and res.json():
+                last_dn = res.json()[0]['doc_number']
+                last_num = int(last_dn.split('/')[-1])
+                return f"{prefix}{last_num + 1:03d}"
+        except: pass
+        return f"{prefix}001"
+
+    def save_doc_history(doc_type, doc_number, po_ref, vendor):
+        try:
+            url = f"{st.secrets['supabase']['url']}/rest/v1/document_history"
+            payload = {
+                "doc_type": doc_type, "doc_number": doc_number, 
+                "po_ref": str(po_ref), "vendor": str(vendor), 
+                "created_by": st.session_state.current_user.get('name', 'System')
+            }
+            requests.post(url, headers=get_db_headers(), json=payload)
+        except: pass
+
+    # FUNGSI BARU UNTUK MENGAMBIL RIWAYAT DOKUMEN
+    def get_doc_history():
+        try:
+            url = f"{st.secrets['supabase']['url']}/rest/v1/document_history?select=*&order=created_at.desc&limit=100"
+            res = requests.get(url, headers=get_db_headers())
+            if res.status_code == 200 and res.json():
+                return pd.DataFrame(res.json())
+        except: pass
+        return pd.DataFrame()
 
     col_load, col_clear = st.columns(2)
     with col_load:
         if st.button("Muat Data Kategori", use_container_width=True):
             with st.spinner("Memuat data dari Google Sheet..."):
                 df_loaded = load_operation_data(csv_url)
-                st.session_state["operation_df"] = df_loaded # Simpan langsung ke memori
+                st.session_state["operation_df"] = df_loaded 
             st.success(f"Data dimuat. Total {len(df_loaded)} baris.")
     with col_clear:
         if st.button("Clear Data Lokal", use_container_width=True):
@@ -128,9 +156,6 @@ with col_main:
             st.session_state["operation_df"] = None
             st.success("Data berhasil dibersihkan.")
 
-    # ==========================================
-    # PERBAIKAN UTAMA: AMBIL DATA DENGAN AMAN (.get)
-    # ==========================================
     df = st.session_state.get("operation_df")
     
     if df is not None and not df.empty:
@@ -185,7 +210,7 @@ with col_main:
                     selected_po = matching_pos[0]
                     st.success(f"✅ PO Ditemukan: {selected_po}")
                 else:
-                    st.error(f"❌ PO mengandung '{search_query}' tidak ditemukan di tabel data.")
+                    st.error(f"❌ PO terkait '{search_query}' tidak ditemukan di tabel data.")
                     st.stop()
             else:
                 selected_po = st.selectbox("📦 Pilih PO dari Daftar:", po_numbers, index=0)
@@ -208,10 +233,14 @@ with col_main:
                         site_lbl = get_site_name(df_for_pdf)
                         st.session_state["generated_po_bytes"] = build_po_pdf_bytes(df_for_pdf)
                         st.session_state["generated_po_filename"] = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
+                        
+                        save_doc_history("PO", str(selected_po), selected_po, selected_vendor)
+                        st.success("Dokumen Fast Track PO berhasil dicatat ke riwayat!")
+                        
                 if st.session_state.get("generated_po_bytes"):
                     st.download_button("⬇️ Download PO PDF", data=st.session_state["generated_po_bytes"], file_name=st.session_state["generated_po_filename"], mime="application/pdf", use_container_width=True, key="dl_fast_po")
 
-            st.markdown("### ⚙️ Mode Lanjut (Custom Edit)")
+            st.markdown("### ⚙️ Mode Custom")
             step1_col, step2_col, step3_col = st.columns(3)
             with step1_col:
                 if st.button("Step 1 • Preview", use_container_width=True): st.session_state["op_step"] = 1
@@ -338,24 +367,25 @@ with col_main:
                 df_pdf = df_pdf.iloc[selected_indices].copy().reset_index(drop=True)
 
                 if mode_aktif == "DELIVERY NOTE":
-                    st.subheader("🧾 Pengaturan Kurir (DN)")
+                    st.subheader("🧾 Info Surat Jalan (Vendor)")
                     d1, d2, d3 = st.columns(3)
-                    with d1: dn_ven = st.text_input("Vendor / Pengirim")
+                    with d1: dn_ven = st.text_input("No. Surat Jalan")
                     with d2: dn_pol = st.text_input("No. Polisi")
                     with d3: st.text_input("Preview DN", value=get_custom_dn_number(), disabled=True)
                     
-                    if st.button("📄 Cetak Kustom (DN)", use_container_width=True, type="primary"):
+                    if st.button("📄 Cetak (DN)", use_container_width=True, type="primary"):
                         c_dn = get_custom_dn_number()
                         pdf_bytes, site_lbl, ven_name = generate_dn_pdf(po_data=df_pdf, po_number=selected_po, dn_vendor=dn_ven, no_pol=dn_pol, dn_remarks="", dn_serveone_number=c_dn, category=cat_code)
                         
                         site_lbl = get_site_name(df_pdf)
                         st.session_state["g_dn_bytes"] = pdf_bytes
                         st.session_state["g_dn_file"] = f"[{site_lbl}] DN - {selected_po} - {selected_vendor}.pdf"
-                        st.success("Dokumen berhasil dibuat.")
+                        
+                        save_doc_history("DN", c_dn, selected_po, selected_vendor)
+                        st.success(f"Dokumen {c_dn} berhasil dibuat & disimpan ke riwayat.")
                         
                     if st.session_state.get("g_dn_bytes"):
                         if st.download_button("⬇️ Download DN", data=st.session_state["g_dn_bytes"], file_name=st.session_state["g_dn_file"], mime="application/pdf", use_container_width=True, key="dl_c_dn"):
-                            bump_custom_dn_counter()
                             st.session_state["g_dn_bytes"] = None
 
                 elif mode_aktif == "PURCHASE ORDER":
@@ -363,7 +393,10 @@ with col_main:
                         site_lbl = get_site_name(df_pdf)
                         st.session_state["g_po_bytes"] = build_po_pdf_bytes(df_pdf)
                         st.session_state["g_po_file"] = f"[{site_lbl}] PO - {selected_po} - {selected_vendor}.pdf"
-                        st.success("Dokumen berhasil dibuat.")
+                        
+                        save_doc_history("PO", str(selected_po), selected_po, selected_vendor)
+                        st.success("Dokumen PO berhasil dibuat & dicatat ke riwayat!")
+                        
                     if st.session_state.get("g_po_bytes"):
                         st.download_button("⬇️ Download PO", data=st.session_state["g_po_bytes"], file_name=st.session_state["g_po_file"], mime="application/pdf", use_container_width=True, key="dl_c_po")
 
@@ -388,4 +421,22 @@ with col_main:
                     st.dataframe(df_rekomendasi, hide_index=True, use_container_width=True)
                 except Exception as e:
                     st.warning(f"Tidak dapat memproses rekomendasi: {e}")
-            with tab_app: st.info("Integrasi database tertunda.")
+            
+            # --- FITUR BARU: Menampilkan Log History ---
+            with tab_app: 
+                st.markdown("### 🗄️ Riwayat Pembuatan Dokumen (Live Database)")
+                col_ref, _ = st.columns([1, 4])
+                with col_ref:
+                    if st.button("🔄 Refresh Data Log", use_container_width=True):
+                        st.rerun()
+                
+                history_df = get_doc_history()
+                if not history_df.empty:
+                    # Rapikan nama kolom dan format waktu agar mudah dibaca tim
+                    display_history = history_df[["created_at", "doc_type", "doc_number", "po_ref", "vendor", "created_by"]].copy()
+                    display_history["created_at"] = pd.to_datetime(display_history["created_at"]).dt.tz_convert("Asia/Jakarta").dt.strftime("%d-%m-%Y %H:%M")
+                    display_history.columns = ["Waktu Pembuatan", "Tipe", "No. Dokumen", "Referensi PO", "Vendor", "Operator"]
+                    
+                    st.dataframe(display_history, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Belum ada riwayat dokumen yang tersimpan atau gagal terhubung ke database.")
