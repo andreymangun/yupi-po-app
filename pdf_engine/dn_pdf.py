@@ -40,7 +40,7 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
     
     # Bill To
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(90, 5, "Bill To / Ship To:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(90, 5, "Ship To:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 9)
     pdf.cell(90, 5, f"PT. YUPI INDO JELLY GUM Tbk ({site_label})", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.multi_cell(90, 5, full_addr)
