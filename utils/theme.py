@@ -48,24 +48,24 @@ def inject_css():
         st.markdown(f"""
             <style>
             {global_css}
-            .stApp {{ background-color: #F8FAFC !important; }}
+            
+            /* --- FIX: Menggunakan CSS Variables Streamlit agar Adaptif Dark Mode --- */
+            .stApp {{ background-color: var(--background-color) !important; }}
             
             /* --- PERBAIKAN SPASI KOSONG --- */
-            /* Mengurangi padding default Streamlit pada block container utama */
             .block-container {{
-                padding-top: 2rem !important; /* Kurangi dari default yang biasanya besar */
+                padding-top: 2rem !important; 
                 padding-bottom: 2rem !important;
             }}
 
-            /* Menyesuaikan kotak kaca agar isinya lebih padat di atas */
+            /* Menyesuaikan kotak kaca agar isinya lebih padat di atas dan warna mengikuti tema */
             .main-glass-frame, div[data-testid="stForm"], div[data-testid="stExpander"], .stDataFrame, .stTabs [data-baseweb="tab-panel"] {{
-                background-color: white !important; 
+                background-color: var(--secondary-background-color) !important; 
                 border-radius: 12px !important; 
-                /* Padding lebih kecil di bagian atas (10px) dibanding sisi lain (20px) */
                 padding: 10px 20px 20px 20px !important; 
-                border: 1px solid #E2E8F0 !important; 
+                border: 1px solid rgba(128, 128, 128, 0.2) !important; 
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05) !important;
-                margin-top: 0 !important; /* Pastikan tidak ada margin luar yang mendorong ke bawah */
+                margin-top: 0 !important; 
             }}
             
             /* Menghilangkan margin bawaan Streamlit pada elemen Markdown pertama di dalam frame */
@@ -77,24 +77,29 @@ def inject_css():
                 padding-top: 0 !important;
             }}
 
-            p, span, h1, h2, h3, h4, h5, h6, li, label, .stMarkdown {{ color: #0F172A !important; }}
+            /* Memastikan warna teks mengikuti tema secara otomatis */
+            p, span, h1, h2, h3, h4, h5, h6, li, label, .stMarkdown {{ 
+                color: var(--text-color) !important; 
+            }}
             
+            /* Memastikan Input fields mengikuti warna tema */
             input, textarea, select, 
             div[data-testid="stTextInput"] input, 
             div[data-testid="stTextArea"] textarea, 
             div[data-testid="stDateInput"] input, 
             div[data-testid="stNumberInput"] input, 
             div[data-baseweb="select"] div {{
-                color: #0F172A !important; 
-                -webkit-text-fill-color: #0F172A !important;
-                background-color: white !important;
-                border-color: #CBD5E1 !important;
+                color: var(--text-color) !important; 
+                -webkit-text-fill-color: var(--text-color) !important;
+                background-color: var(--background-color) !important;
+                border-color: rgba(128, 128, 128, 0.3) !important;
             }}
             
+            /* Memastikan tabel mengikuti warna tema */
             .stDataFrame [data-testid="stTable"] th, 
             .stDataFrame [data-testid="stTable"] td, 
             .stDataFrame [data-baseweb="table-header"] {{
-                color: #0F172A !important;
+                color: var(--text-color) !important;
                 background-color: transparent !important;
             }}
             </style>

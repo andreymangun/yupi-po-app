@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import time # --- FIX: Import time untuk delay notifikasi ---
 from datetime import date
 
 # 1. KONFIGURASI HARUS PALING ATAS
@@ -30,7 +31,7 @@ for key, val in state_keys.items():
 
 # 3. IMPORTS CUSTOM
 from utils.auth import require_login
-from utils.theme import inject_css
+# from utils.theme import inject_css  # --- FIX: MATIKAN CSS CUSTOM SEMENTARA AGAR DARK MODE BAWAAN STREAMLIT BEKERJA OPTIMAL ---
 from utils.topbar import render_topbar
 from utils.guards import is_superuser
 
@@ -42,7 +43,7 @@ from services.operation_service import (
 from pdf_engine.dn_pdf import generate_dn_pdf 
 
 init_operation_state()
-inject_css()
+# inject_css() # --- FIX: MATIKAN CSS CUSTOM ---
 require_login()
 render_topbar()
 
@@ -50,7 +51,7 @@ render_topbar()
 col_main, col_ai = st.columns([3.5, 1.5], gap="large")
 
 with col_ai:
-    st.markdown("<h3 style='color:#1E293B; margin-top:0px;'>🤖 Tanyadah (Under Development)</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='margin-top:0px;'>🤖 Tanyadah (Under Development)</h3>", unsafe_allow_html=True)
     st.info("Pusat asisten terintegrasi untuk merekap status vendor.")
     
     chat_container = st.container(height=500, border=True)
@@ -64,7 +65,7 @@ with col_ai:
         st.rerun()
 
 with col_main:
-    st.markdown("<h2 style='color:#1E293B; margin-top:0px;'>🚚 Operation System</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='margin-top:0px;'>🚚 Operation System</h2>", unsafe_allow_html=True)
     
     st.markdown("""
     <div style="width: 100%; overflow: hidden; background: linear-gradient(90deg, #8B0000, #b22222); color: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;">
@@ -103,28 +104,36 @@ with col_main:
         except: pass
         return site
 
+    def check_is_idr(df_source):
+        try:
+            for col in df_source.columns:
+                col_lower = str(col).lower()
+                if "curr" in col_lower or "mata uang" in col_lower:
+                    valid_rows = df_source[col].dropna()
+                    if not valid_rows.empty:
+                        curr_val = str(valid_rows.iloc[0]).strip().upper()
+                        if curr_val not in ["IDR", "RP", "RP.", "RUPIAH"]:
+                            return False
+        except: pass
+        return True 
+
     def get_db_headers():
         try:
             key = st.secrets["supabase"]["key"]
             return {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         except: return {}
 
-    # --- FIX: FORMAT NOMOR DN BARU ---
     def get_custom_dn_number():
-        # Format DDMMYY (contoh: 010426)
         short_date_str = date.today().strftime('%d%m%y')
-        # Format gabungan misal: RM010426
         prefix = f"{cat_code}{short_date_str}"
         try:
             url = f"{st.secrets['supabase']['url']}/rest/v1/document_history?select=doc_number&doc_type=eq.DN&doc_number=like.{prefix}*&order=created_at.desc&limit=1"
             res = requests.get(url, headers=get_db_headers())
             if res.status_code == 200 and res.json():
                 last_dn = res.json()[0]['doc_number']
-                # Ambil 3 digit terakhir dari format "RM010426002"
                 last_num = int(last_dn[-3:])
                 return f"{prefix}{last_num + 1:03d}"
         except: pass
-        # Jika belum ada data hari ini di database
         return f"{prefix}001"
 
     def save_doc_history(doc_type, doc_number, po_ref, vendor):
@@ -146,6 +155,21 @@ with col_main:
                 return pd.DataFrame(res.json())
         except: pass
         return pd.DataFrame()
+
+    # --- FIX: FUNGSI UNTUK MENYIMPAN FEEDBACK KE SUPABASE ---
+    def save_user_feedback(feedback_type, module_name, message):
+        try:
+            url = f"{st.secrets['supabase']['url']}/rest/v1/app_feedback"
+            payload = {
+                "feedback_type": feedback_type,
+                "module": module_name,
+                "message": message,
+                "submitted_by": st.session_state.current_user.get('name', 'Unknown User')
+            }
+            res = requests.post(url, headers=get_db_headers(), json=payload)
+            return res.status_code in [200, 201]
+        except: 
+            return False
 
     col_load, col_clear = st.columns(2)
     with col_load:
@@ -230,7 +254,10 @@ with col_main:
                 st.markdown("### 🚀 Fast Track (Cetak Langsung PO)")
                 if st.button("📄 CETAK LANGSUNG DOKUMEN (PO)", use_container_width=True, type="primary"):
                     df_for_pdf = vendor_df.copy().reset_index(drop=True)
-                    df_for_pdf["Pajak PPN 11%"] = True
+                    
+                    is_idr = check_is_idr(df_for_pdf)
+                    df_for_pdf["Pajak PPN 11%"] = is_idr
+                    
                     df_for_pdf["Pajak PPh 2%"] = False
                     df_for_pdf["Catatan / Remark"] = ""
                     with st.spinner("Mencetak PDF..."):
@@ -255,7 +282,6 @@ with col_main:
 
             curr_step = st.session_state.get("op_step", 1)
             
-            # --- FIX: DITAMBAHKAN selected_vendor ---
             edit_key = f"edit_baru_{selected_po}_{selected_vendor}_{mode_aktif}"
 
             if curr_step == 1:
@@ -267,7 +293,8 @@ with col_main:
                 if edit_key not in st.session_state:
                     edit_df.insert(0, "Cetak", False)
                     if mode_aktif == "PURCHASE ORDER":
-                        edit_df["PPN 11%"] = True
+                        is_idr = check_is_idr(vendor_df)
+                        edit_df["PPN 11%"] = is_idr
                         edit_df["PPh Potongan"] = False
                     if mode_aktif == "DELIVERY NOTE":
                         if cat_code == "RM":
@@ -295,7 +322,6 @@ with col_main:
                 st.write("**1. Daftar Item:**")
                 st.info("Centang pada kolom 'Cetak Dok.' HANYA untuk item yang ingin dimasukkan ke PDF.")
                 
-                # --- FIX: DITAMBAHKAN selected_vendor PADA KEY FORM ---
                 with st.form(f"frm_grid_{selected_po}_{selected_vendor}_{mode_aktif}"):
                     edited_df = st.data_editor(current_edit_df, use_container_width=True, hide_index=True, column_config=col_cfg)
                     save_grid = st.form_submit_button("Simpan Status Centang", use_container_width=True)
@@ -321,34 +347,42 @@ with col_main:
                         selected_idx = int(selected_item_str.split(" - ")[0])
                         row_data = edited_df.loc[selected_idx]
                         
-                        # --- FIX OPSIONAL: DITAMBAHKAN selected_vendor PADA FORM ITEM ---
-                        with st.form(f"frm_detail_per_item_{selected_idx}_{selected_vendor}"):
-                            new_batch, new_jml, new_exp, new_coding = "", "", "", ""
-                            
-                            if cat_code == "RM":
-                                new_batch = st.text_area("No Batch", value=str(row_data.get("No Batch", "")).replace("nan",""), help="Tekan Enter untuk baris baru")
-                                new_jml = st.text_area("Jml Batch", value=str(row_data.get("Jml Batch", "")).replace("nan",""))
-                                new_exp = st.text_area("Expired Date", value=str(row_data.get("Expired Date", "")).replace("nan",""))
-                            elif cat_code == "PM":
-                                new_coding = st.text_area("Coding", value=str(row_data.get("Coding", "")).replace("nan",""))
-                                
-                            new_remark = st.text_area("Catatan / Remark", value=str(row_data.get("Catatan / Remark", "")).replace("nan",""))
-                            
-                            if st.form_submit_button("Simpan Detail ke Item Ini", type="primary"):
-                                df_to_update = st.session_state[edit_key].copy()
+                        # --- FIX: NOTIFIKASI SIMPAN DETAIL ---
+                        # Kita menggunakan st.container agar form dan notifikasi tetap berada di tempat yang sama
+                        detail_container = st.container()
+                        with detail_container:
+                            with st.form(f"frm_detail_per_item_{selected_idx}_{selected_vendor}"):
+                                new_batch, new_jml, new_exp, new_coding = "", "", "", ""
                                 
                                 if cat_code == "RM":
-                                    df_to_update.at[selected_idx, "No Batch"] = new_batch
-                                    df_to_update.at[selected_idx, "Jml Batch"] = new_jml
-                                    df_to_update.at[selected_idx, "Expired Date"] = new_exp
+                                    new_batch = st.text_area("No Batch", value=str(row_data.get("No Batch", "")).replace("nan",""), help="Tekan Enter untuk baris baru")
+                                    new_jml = st.text_area("Jml Batch", value=str(row_data.get("Jml Batch", "")).replace("nan",""))
+                                    new_exp = st.text_area("Expired Date", value=str(row_data.get("Expired Date", "")).replace("nan",""))
                                 elif cat_code == "PM":
-                                    df_to_update.at[selected_idx, "Coding"] = new_coding
+                                    new_coding = st.text_area("Coding", value=str(row_data.get("Coding", "")).replace("nan",""))
+                                    
+                                new_remark = st.text_area("Catatan / Remark", value=str(row_data.get("Catatan / Remark", "")).replace("nan",""))
                                 
-                                df_to_update.at[selected_idx, "Catatan / Remark"] = new_remark
+                                submitted_detail = st.form_submit_button("Simpan Detail ke Item Ini", type="primary")
                                 
-                                st.session_state[edit_key] = df_to_update
-                                st.success(f"✅ Detail untuk '{selected_item_str.split(' - ')[1]}' berhasil disimpan! Silakan pilih item lain atau klik Step 3.")
-                                st.rerun()
+                                if submitted_detail:
+                                    df_to_update = st.session_state[edit_key].copy()
+                                    
+                                    if cat_code == "RM":
+                                        df_to_update.at[selected_idx, "No Batch"] = new_batch
+                                        df_to_update.at[selected_idx, "Jml Batch"] = new_jml
+                                        df_to_update.at[selected_idx, "Expired Date"] = new_exp
+                                    elif cat_code == "PM":
+                                        df_to_update.at[selected_idx, "Coding"] = new_coding
+                                    
+                                    df_to_update.at[selected_idx, "Catatan / Remark"] = new_remark
+                                    
+                                    st.session_state[edit_key] = df_to_update
+                                    
+                                    # Menggunakan st.toast untuk notifikasi popup yang tidak mengganggu
+                                    st.toast(f"✅ Detail tersimpan!", icon="💾")
+                                    # Menampilkan st.success di atas form tanpa melakukan rerun
+                                    st.success(f"Detail untuk item berhasil disimpan. Data pada tabel di atas otomatis diperbarui.")
 
             elif curr_step == 3:
                 df_pdf = vendor_df.copy().reset_index(drop=True)
@@ -410,10 +444,14 @@ with col_main:
 
         elif mode_aktif == "SUMMARY":
             st.subheader(f"📊 Enterprise Summary: {pilihan_kategori}")
-            tab_sum, tab_rec, tab_app = st.tabs(["📊 Dashboard Utama", "💡 Sourcing Logic", "✅ Workflow Log"])
+            
+            # --- FIX: TAMBAHKAN TAB FEEDBACK ---
+            tab_sum, tab_rec, tab_app, tab_feedback = st.tabs(["📊 Dashboard Utama", "💡 Sourcing Logic", "✅ Workflow Log", "💬 Feedback & Improvement"])
+            
             with tab_sum:
                 st.metric("Total Baris Data", len(df))
                 st.dataframe(df.head(15), use_container_width=True)
+                
             with tab_rec:
                 col_item = df.columns[0]
                 for c in df.columns:
@@ -430,7 +468,6 @@ with col_main:
                 except Exception as e:
                     st.warning(f"Tidak dapat memproses rekomendasi: {e}")
             
-            # --- FITUR BARU: Menampilkan Log History ---
             with tab_app: 
                 st.markdown("### 🗄️ Riwayat Pembuatan Dokumen (Live Database)")
                 col_ref, _ = st.columns([1, 4])
@@ -440,7 +477,6 @@ with col_main:
                 
                 history_df = get_doc_history()
                 if not history_df.empty:
-                    # Rapikan nama kolom dan format waktu agar mudah dibaca tim
                     display_history = history_df[["created_at", "doc_type", "doc_number", "po_ref", "vendor", "created_by"]].copy()
                     display_history["created_at"] = pd.to_datetime(display_history["created_at"]).dt.tz_convert("Asia/Jakarta").dt.strftime("%d-%m-%Y %H:%M")
                     display_history.columns = ["Waktu Pembuatan", "Tipe", "No. Dokumen", "Referensi PO", "Vendor", "Operator"]
@@ -448,3 +484,25 @@ with col_main:
                     st.dataframe(display_history, use_container_width=True, hide_index=True)
                 else:
                     st.info("Belum ada riwayat dokumen yang tersimpan atau gagal terhubung ke database.")
+                    
+            # --- FIX: FORM INPUT FEEDBACK ---
+            with tab_feedback:
+                st.markdown("### 💬 Bantu Kami Menjadi Lebih Baik")
+                st.info("Sampaikan ide perbaikan fitur, laporan kendala (bug), atau masukan lainnya terkait sistem ini. Feedback Anda sangat berarti untuk fase Beta Testing ini.")
+                
+                with st.form("form_feedback_improvement"):
+                    fb_type = st.selectbox("Kategori Laporan:", ["Usulan Fitur (Feature Request)", "Laporan Kendala (Bug Report)", "Masukan UX/Tampilan", "Lainnya"])
+                    fb_module = st.selectbox("Modul yang Berkaitan:", ["Operation System (PO/DN)", "Dashboard Utama", "Tanyadah (AI Assistant)", "Menu Lain"])
+                    fb_message = st.text_area("Pesan / Deskripsi Detail:", placeholder="Contoh: Saat saya mencoba klik tombol X, warnanya menjadi hitam dan tidak terbaca...", height=150)
+                    
+                    submitted_fb = st.form_submit_button("Kirim Feedback 🚀")
+                    
+                    if submitted_fb:
+                        if not fb_message.strip():
+                            st.error("Pesan deskripsi tidak boleh kosong.")
+                        else:
+                            success = save_user_feedback(fb_type, fb_module, fb_message)
+                            if success:
+                                st.success("Terima kasih! Feedback Anda telah berhasil direkam ke dalam database dan akan segera diulas oleh tim pengembang.")
+                            else:
+                                st.warning("Mohon maaf, terjadi kendala koneksi saat menyimpan feedback. Pastikan tabel 'app_feedback' sudah dibuat di Supabase.")
