@@ -133,7 +133,6 @@ with col_main:
             requests.post(url, headers=get_db_headers(), json=payload)
         except: pass
 
-    # FUNGSI BARU UNTUK MENGAMBIL RIWAYAT DOKUMEN
     def get_doc_history():
         try:
             url = f"{st.secrets['supabase']['url']}/rest/v1/document_history?select=*&order=created_at.desc&limit=100"
@@ -250,7 +249,9 @@ with col_main:
                 if st.button("Step 3 • Generate", use_container_width=True): st.session_state["op_step"] = 3
 
             curr_step = st.session_state.get("op_step", 1)
-            edit_key = f"edit_baru_{selected_po}_{mode_aktif}"
+            
+            # --- FIX: DITAMBAHKAN selected_vendor ---
+            edit_key = f"edit_baru_{selected_po}_{selected_vendor}_{mode_aktif}"
 
             if curr_step == 1:
                 st.dataframe(get_display_dataframe(vendor_df).head(50), use_container_width=True, hide_index=True)
@@ -289,7 +290,8 @@ with col_main:
                 st.write("**1. Daftar Item:**")
                 st.info("Centang pada kolom 'Cetak Dok.' HANYA untuk item yang ingin dimasukkan ke PDF.")
                 
-                with st.form(f"frm_grid_{selected_po}_{mode_aktif}"):
+                # --- FIX: DITAMBAHKAN selected_vendor PADA KEY FORM ---
+                with st.form(f"frm_grid_{selected_po}_{selected_vendor}_{mode_aktif}"):
                     edited_df = st.data_editor(current_edit_df, use_container_width=True, hide_index=True, column_config=col_cfg)
                     save_grid = st.form_submit_button("Simpan Status Centang", use_container_width=True)
                 
@@ -314,7 +316,8 @@ with col_main:
                         selected_idx = int(selected_item_str.split(" - ")[0])
                         row_data = edited_df.loc[selected_idx]
                         
-                        with st.form(f"frm_detail_per_item_{selected_idx}"):
+                        # --- FIX OPSIONAL: DITAMBAHKAN selected_vendor PADA FORM ITEM ---
+                        with st.form(f"frm_detail_per_item_{selected_idx}_{selected_vendor}"):
                             new_batch, new_jml, new_exp, new_coding = "", "", "", ""
                             
                             if cat_code == "RM":

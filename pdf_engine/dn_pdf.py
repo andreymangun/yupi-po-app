@@ -29,12 +29,11 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # ... (SISA KODE generate_dn_pdf SAMA SEPERTI SEBELUMNYA) ...
     info = po_data.iloc[0]
 
     site_raw = clean_val(info.get("SITE (IDN/KRG)", info.get("SITE"))).upper()
     site_label = "IDN" if "IDN" in site_raw else "KRG"
-    full_addr = "Jl. Pancasila IV No.9, Cicadas, Bogor" if site_label == "IDN" else "Jl. Grompol-Jambangan, Kebakkramat, Karanganyar"
+    full_addr = "Jl. Pancasila IV, Desa/Kelurahan Cicadas,\nKec Gunung Putri, Kab Bogor,\nProvinsi Jawa Barat, Indonesia" if site_label == "IDN" else "Jl. Grompol Jambangan Km 5, Muringan,\nDesa Kaliwuluh, Kecamatan Kebak Kramat\nKabupaten Karanganyar Provinsi Jawa Tengah, Indonesia"
     vendor_name = clean_val(info.get("Vendor Name", "Unknown Vendor"))
 
     y_anchor = pdf.get_y()
@@ -70,12 +69,13 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 7)
     
+    # --- PERBAIKAN TOTAL LEBAR KOLOM (Total ~190) ---
     if category == "RM":
-        cols = [("NO", 7), ("ITEM ID", 18), ("PROD. NM / SPEC", 50), ("QTY", 12), ("UNIT", 10), ("NO BATCH", 18), ("JML BATCH", 15), ("EXP DATE", 18), ("REMARKS", 42)]
+        cols = [("NO", 6), ("PO SMNTR", 22), ("ITEM ID", 16), ("PROD. NM / SPEC", 40), ("QTY", 10), ("UNIT", 9), ("NO BATCH", 18), ("JML BATCH", 15), ("EXP DATE", 16), ("REMARKS", 38)]
     elif category == "PM":
-        cols = [("NO", 8), ("ITEM ID", 22), ("PROD. NM / SPEC", 70), ("QTY", 13), ("UNIT", 12), ("CODING", 20), ("REMARKS", 45)]
+        cols = [("NO", 8), ("PO SMNTR", 22), ("ITEM ID", 18), ("PROD. NM / SPEC", 53), ("QTY", 12), ("UNIT", 12), ("CODING", 20), ("REMARKS", 45)]
     else:
-        cols = [("NO", 8), ("ITEM ID", 25), ("PROD. NM / SPEC", 80), ("QTY", 15), ("UNIT", 15), ("REMARKS", 47)]
+        cols = [("NO", 8), ("PO SEMENTARA", 25), ("ITEM ID", 20), ("PROD. NM / SPEC", 70), ("QTY", 15), ("UNIT", 15), ("REMARKS", 37)]
 
     for txt, w in cols: 
         pdf.cell(w, 8, txt, border=1, fill=True, align="C")
@@ -97,7 +97,12 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
         
         item_remark = str(row.get("Catatan / Remark", "")).strip()
         if item_remark.lower() in ["nan", "none", ""]: item_remark = "-"
+        
+        # Tarik data PO SEMENTARA
+        po_sementara = str(row.get("PO SEMENTARA", "")).strip()
+        if po_sementara.lower() in ["nan", "none", ""]: po_sementara = "-"
 
+        # --- PERBAIKAN: Penyesuaian lebar data lurus dengan header ---
         if category == "RM":
             batch = str(row.get("No Batch", "")).strip()
             jml = str(row.get("Jml Batch", "")).strip()
@@ -105,16 +110,16 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
             if batch.lower() in ["nan", "none", ""]: batch = "-"
             if jml.lower() in ["nan", "none", ""]: jml = "-"
             if exp.lower() in ["nan", "none", ""]: exp = "-"
-            widths = [7, 18, 50, 12, 10, 18, 15, 18, 42]
-            texts = [str(i), clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), batch, jml, exp, item_remark]
+            widths = [6, 22, 16, 40, 10, 9, 18, 15, 16, 38]
+            texts = [str(i), po_sementara, clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), batch, jml, exp, item_remark]
         elif category == "PM":
             coding_val = str(row.get("Coding", "")).strip()
             if coding_val.lower() in ["nan", "none", ""]: coding_val = "-"
-            widths = [8, 22, 70, 13, 12, 20, 45]
-            texts = [str(i), clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), coding_val, item_remark]
+            widths = [8, 22, 18, 53, 12, 12, 20, 45]
+            texts = [str(i), po_sementara, clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), coding_val, item_remark]
         else:
-            widths = [8, 25, 80, 15, 15, 47]
-            texts = [str(i), clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), item_remark]
+            widths = [8, 25, 20, 70, 15, 15, 37]
+            texts = [str(i), po_sementara, clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), item_remark]
 
         max_lines = 1
         for w, t in zip(widths, texts):
@@ -123,7 +128,6 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
 
         row_h = max(10, max_lines * 4 + 2)
         
-        # Ubah batas sedikit agar tidak tumpang tindih dengan footer
         if pdf.get_y() + row_h > 270: 
              pdf.add_page()
         
@@ -133,6 +137,8 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
             pdf.set_xy(x_start, y_start)
             pdf.cell(w, row_h, "", border=1)
             pdf.set_xy(x_start, y_start + 1)
+            
+            # PROD NM dan REMARKS lurus kiri (L), sisanya tengah (C)
             align = "L" if t in [prod_spec, item_remark] else "C"
             pdf.multi_cell(w, 4, t, border=0, align=align)
             x_start += w
