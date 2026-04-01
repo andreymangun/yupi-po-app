@@ -109,17 +109,22 @@ with col_main:
             return {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         except: return {}
 
+    # --- FIX: FORMAT NOMOR DN BARU ---
     def get_custom_dn_number():
-        date_str = date.today().strftime('%d%m%Y')
-        prefix = f"DS/{cat_code}/{date_str}/"
+        # Format DDMMYY (contoh: 010426)
+        short_date_str = date.today().strftime('%d%m%y')
+        # Format gabungan misal: RM010426
+        prefix = f"{cat_code}{short_date_str}"
         try:
             url = f"{st.secrets['supabase']['url']}/rest/v1/document_history?select=doc_number&doc_type=eq.DN&doc_number=like.{prefix}*&order=created_at.desc&limit=1"
             res = requests.get(url, headers=get_db_headers())
             if res.status_code == 200 and res.json():
                 last_dn = res.json()[0]['doc_number']
-                last_num = int(last_dn.split('/')[-1])
+                # Ambil 3 digit terakhir dari format "RM010426002"
+                last_num = int(last_dn[-3:])
                 return f"{prefix}{last_num + 1:03d}"
         except: pass
+        # Jika belum ada data hari ini di database
         return f"{prefix}001"
 
     def save_doc_history(doc_type, doc_number, po_ref, vendor):

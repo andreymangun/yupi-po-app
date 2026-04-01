@@ -71,11 +71,11 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
     
     # --- PERBAIKAN TOTAL LEBAR KOLOM (Total ~190) ---
     if category == "RM":
-        cols = [("NO", 6), ("PO SMNTR", 22), ("ITEM ID", 16), ("PROD. NM / SPEC", 40), ("QTY", 10), ("UNIT", 9), ("NO BATCH", 18), ("JML BATCH", 15), ("EXP DATE", 16), ("REMARKS", 38)]
+        cols = [("NO", 6), ("SO", 25), ("ITEM ID", 18), ("PROD. NM / SPEC", 40), ("QTY", 10), ("UNIT", 9), ("NO BATCH", 18), ("JML BATCH", 15), ("EXP DATE", 16), ("REMARKS", 33)]
     elif category == "PM":
-        cols = [("NO", 8), ("PO SMNTR", 22), ("ITEM ID", 18), ("PROD. NM / SPEC", 53), ("QTY", 12), ("UNIT", 12), ("CODING", 20), ("REMARKS", 45)]
+        cols = [("NO", 8), ("SO", 25), ("ITEM ID", 18), ("PROD. NM / SPEC", 53), ("QTY", 12), ("UNIT", 12), ("CODING", 20), ("REMARKS", 42)]
     else:
-        cols = [("NO", 8), ("PO SEMENTARA", 25), ("ITEM ID", 20), ("PROD. NM / SPEC", 70), ("QTY", 15), ("UNIT", 15), ("REMARKS", 37)]
+        cols = [("NO", 8), ("SO", 25), ("ITEM ID", 20), ("PROD. NM / SPEC", 70), ("QTY", 15), ("UNIT", 15), ("REMARKS", 37)]
 
     for txt, w in cols: 
         pdf.cell(w, 8, txt, border=1, fill=True, align="C")
@@ -110,12 +110,12 @@ def generate_dn_pdf(po_data, po_number: str, dn_vendor: str, no_pol: str, dn_rem
             if batch.lower() in ["nan", "none", ""]: batch = "-"
             if jml.lower() in ["nan", "none", ""]: jml = "-"
             if exp.lower() in ["nan", "none", ""]: exp = "-"
-            widths = [6, 22, 16, 40, 10, 9, 18, 15, 16, 38]
+            widths = [6, 25, 18, 40, 10, 9, 18, 15, 16, 33]
             texts = [str(i), po_sementara, clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), batch, jml, exp, item_remark]
         elif category == "PM":
             coding_val = str(row.get("Coding", "")).strip()
             if coding_val.lower() in ["nan", "none", ""]: coding_val = "-"
-            widths = [8, 22, 18, 53, 12, 12, 20, 45]
+            widths = [8, 25, 18, 53, 12, 12, 20, 42]
             texts = [str(i), po_sementara, clean_val(row.get("Item Yupi")), prod_spec, format_qty(qty), clean_val(row.get("Unit")), coding_val, item_remark]
         else:
             widths = [8, 25, 20, 70, 15, 15, 37]
