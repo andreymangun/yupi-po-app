@@ -64,7 +64,7 @@ def generate_po_pdf(po_data, po_number: str):
 
     pdf.set_font("Helvetica", "", 8)
     y_content = pdf.get_y()
-    client_info = "PT. SERVEONE MRO INDONESIA\nDAIWA MANUNGGAL LOGISTIK CENTRE PHASE 2\nUNIT C-2-2 LANTAI 2, KAWASAN INDUSTRI MM2100,\nJALAN SUMATERA BLOK G-3, Desa/Kelurahan Gandamekar,\nKec. Cikarang Barat Kab. Bekasi, Provinsi Jawa Barat, Indonesia"
+    client_info = "PT. SERVEONE MRO INDONESIA\nMenara Bidakara 2 Lantai 7 Unit 05-06,2\nJl. Gatot Subroto Kav. 71-73, RT8/RW8,\nDKI Jakarta, Kota Jakarta Selatan,\nTebet, Menteng Dalam, 12870"
     vendor_info = f"{vendor_name}\n{clean_val(info.get('Vendor Address'))}"
     pdf.set_xy(10, y_content)
     pdf.multi_cell(92, 4, client_info)
