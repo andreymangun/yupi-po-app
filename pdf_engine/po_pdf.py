@@ -64,7 +64,28 @@ def generate_po_pdf(po_data, po_number: str):
 
     pdf.set_font("Helvetica", "", 8)
     y_content = pdf.get_y()
-    client_info = "PT. SERVEONE MRO INDONESIA\nMenara Bidakara 2 Lantai 7 Unit 05-06,2\nJl. Gatot Subroto Kav. 71-73, RT8/RW8,\nDKI Jakarta, Kota Jakarta Selatan,\nTebet, Menteng Dalam, 12870"
+    # 1. Ambil nilai Currency di awal
+    curr_raw = clean_val(info.get("CURRENCY")).upper() or "IDR"
+    
+    # 2. Ambil nilai Group (antisipasi nama kolom "GROUP =" seperti di gambar, atau "GROUP")
+    group_val = clean_val(info.get("GROUP =", info.get("GROUP", ""))).upper()
+
+    # 3. Logika penentuan alamat Serveone MRO Indonesia
+    if group_val == "RM" and curr_raw in ["USD", "EUR"]:
+        client_info = (
+            "PT. SERVEONE MRO INDONESIA\n"
+            "Jalan Kenari Raya Blok G 2 No 19,\n"
+            "Kawasan Delta Silicon V, Lippo Cikarang, Cicau,\n"
+            "Cikarang Pusat, Kab. Bekasi, Jawa Barat"
+        )
+    else:
+        client_info = (
+            "PT. SERVEONE MRO INDONESIA\n"
+            "Menara Bidakara 2 Lantai 7 Unit 05-06,2\n"
+            "Jl. Gatot Subroto Kav. 71-73, RT8/RW8,\n"
+            "DKI Jakarta, Kota Jakarta Selatan,\n"
+            "Tebet, Menteng Dalam, 12870"
+        )
     vendor_info = f"{vendor_name}\n{clean_val(info.get('Vendor Address'))}"
     pdf.set_xy(10, y_content)
     pdf.multi_cell(92, 4, client_info)
