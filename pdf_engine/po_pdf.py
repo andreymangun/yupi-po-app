@@ -84,7 +84,7 @@ def generate_po_pdf(po_data, po_number: str):
     if curr_raw in ["EUR", "USD"]:
         # Alamat untuk PO Impor
         delivery_title = "DELIVERY ADDRESS: PT. SERVEONE MRO INDONESIA"
-        full_addr = "JALAN KENARI RAYA BLOK G NO. 19,\nKAWASAN DELTA SILICON V, LIPPO CIKARANG,\nRT. 000 RW. 000, CICAU, CIKARANG PUSAT,\nKAB. BEKASI, JAWA BARAT"
+        full_addr = "JALAN KENARI RAYA BLOK G NO. 19, KAWASAN DELTA SILICON V, LIPPO CIKARANG, RT. 000 RW. 000, CICAU, CIKARANG PUSAT, KAB. BEKASI, JAWA BARAT"
     else:
         # Alamat untuk PO Lokal (Yupi)
         delivery_title = f"DELIVERY ADDRESS: PT. YUPI INDO JELLY GUM Tbk ({site_label})"
