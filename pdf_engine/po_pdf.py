@@ -73,8 +73,12 @@ def generate_po_pdf(po_data, po_number: str):
     
     pdf.set_y(max(pdf.get_y(), y_content + 15) + 10)
 
-    # 1. Tarik data Currency lebih awal untuk pengecekan kondisi
+    # 1. Tarik data Currency dan Site lebih awal
     curr_raw = clean_val(info.get("CURRENCY")).upper() or "IDR"
+    site_raw = clean_val(info.get("SITE (IDN/KRG)", info.get("SITE"))).upper()
+    
+    # VARIABEL INI HARUS SELALU ADA AGAR TIDAK ERROR SAAT DI-RETURN
+    site_label = "IDN" if "IDN" in site_raw else "KRG" 
 
     # 2. Logika penentuan Delivery Address berdasarkan Currency
     if curr_raw in ["EUR", "USD"]:
@@ -83,8 +87,6 @@ def generate_po_pdf(po_data, po_number: str):
         full_addr = "JALAN KENARI RAYA BLOK G NO. 19,\nKAWASAN DELTA SILICON V, LIPPO CIKARANG,\nRT. 000 RW. 000, CICAU, CIKARANG PUSAT,\nKAB. BEKASI, JAWA BARAT"
     else:
         # Alamat untuk PO Lokal (Yupi)
-        site_raw = clean_val(info.get("SITE (IDN/KRG)", info.get("SITE"))).upper()
-        site_label = "IDN" if "IDN" in site_raw else "KRG"
         delivery_title = f"DELIVERY ADDRESS: PT. YUPI INDO JELLY GUM Tbk ({site_label})"
         full_addr = "Jl. Pancasila IV, Desa/Kelurahan Cicadas, Kec Gunung Putri, Kab Bogor, Provinsi Jawa Barat, Indonesia" if site_label == "IDN" else "Jl. Grompol Jambangan Km 5, Muringan, Desa Kaliwuluh, Kecamatan Kebak Kramat Kabupaten Karanganyar Provinsi Jawa Tengah, Indonesia"
 
@@ -94,7 +96,7 @@ def generate_po_pdf(po_data, po_number: str):
     pdf.set_font("Helvetica", "", 8)
     pdf.multi_cell(0, 5, full_addr)
     pdf.ln(5)
-
+    
     pdf.set_fill_color(139, 0, 0)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 7)
